@@ -1,1 +1,12 @@
+node_modules/
+.env
+.env.local
+.env.production
+.env.test
+*.env
+.expo/
+dist/
+build/
+.turbo/
+*.log
 .DS_Store
