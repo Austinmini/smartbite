@@ -18,6 +18,7 @@
     "@fastify/rate-limit": "^10.2.2",
     "@prisma/client": "^6.6.0",
     "@smartbite/shared": "workspace:*",
+    "@supabase/supabase-js": "^2.49.4",
     "fastify": "^5.3.2",
     "jsonwebtoken": "^9.0.2",
     "pino": "^9.7.0",

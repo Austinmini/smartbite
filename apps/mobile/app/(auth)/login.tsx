@@ -1,7 +1,34 @@
-import { StyleSheet, Text, View, TextInput, TouchableOpacity } from 'react-native'
+import { useState } from 'react'
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native'
 import { Link } from 'expo-router'
+import { apiClient } from '@/lib/apiClient'
+import { useAuthStore } from '@/stores/authStore'
 
 export default function LoginScreen() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const setUser = useAuthStore((s) => s.setUser)
+
+  async function handleLogin() {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please enter your email and password')
+      return
+    }
+    setLoading(true)
+    try {
+      const res = await apiClient.post<{ access_token: string; user: { id: string; email: string; tier: 'FREE' | 'PLUS' | 'PRO' } }>(
+        '/auth/login',
+        { email, password }
+      )
+      setUser(res.user, res.access_token)
+    } catch (err: any) {
+      Alert.alert('Sign in failed', err.message ?? 'Invalid email or password')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <View style={styles.container} testID="login-screen">
       <Text style={styles.title}>SmartBite</Text>
@@ -11,16 +38,20 @@ export default function LoginScreen() {
         placeholder="Email"
         autoCapitalize="none"
         keyboardType="email-address"
+        value={email}
+        onChangeText={setEmail}
         testID="email-input"
       />
       <TextInput
         style={styles.input}
         placeholder="Password"
         secureTextEntry
+        value={password}
+        onChangeText={setPassword}
         testID="password-input"
       />
-      <TouchableOpacity style={styles.btn} testID="login-btn">
-        <Text style={styles.btnText}>Sign in</Text>
+      <TouchableOpacity style={styles.btn} onPress={handleLogin} disabled={loading} testID="login-btn">
+        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Sign in</Text>}
       </TouchableOpacity>
       <Link href="/(auth)/signup" style={styles.link}>
         Don't have an account? Sign up

@@ -1,7 +1,39 @@
-import { StyleSheet, Text, View, TextInput, TouchableOpacity } from 'react-native'
+import { useState } from 'react'
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native'
 import { Link } from 'expo-router'
+import { apiClient } from '@/lib/apiClient'
+import { useAuthStore } from '@/stores/authStore'
 
 export default function SignupScreen() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const setUser = useAuthStore((s) => s.setUser)
+
+  async function handleSignup() {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please enter your email and password')
+      return
+    }
+    if (password.length < 8) {
+      Alert.alert('Error', 'Password must be at least 8 characters')
+      return
+    }
+    setLoading(true)
+    try {
+      const res = await apiClient.post<{ access_token: string; user: { id: string; email: string; tier: 'FREE' | 'PLUS' | 'PRO' } }>(
+        '/auth/signup',
+        { email, password }
+      )
+      setUser(res.user, res.access_token)
+    } catch (err: any) {
+      const msg = err.status === 409 ? 'An account with this email already exists' : (err.message ?? 'Sign up failed')
+      Alert.alert('Sign up failed', msg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <View style={styles.container} testID="signup-screen">
       <Text style={styles.title}>Create account</Text>
@@ -11,16 +43,20 @@ export default function SignupScreen() {
         placeholder="Email"
         autoCapitalize="none"
         keyboardType="email-address"
+        value={email}
+        onChangeText={setEmail}
         testID="email-input"
       />
       <TextInput
         style={styles.input}
-        placeholder="Password"
+        placeholder="Password (min 8 characters)"
         secureTextEntry
+        value={password}
+        onChangeText={setPassword}
         testID="password-input"
       />
-      <TouchableOpacity style={styles.btn} testID="signup-btn">
-        <Text style={styles.btnText}>Create account</Text>
+      <TouchableOpacity style={styles.btn} onPress={handleSignup} disabled={loading} testID="signup-btn">
+        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Create account</Text>}
       </TouchableOpacity>
       <Link href="/(auth)/login" style={styles.link}>
         Already have an account? Sign in

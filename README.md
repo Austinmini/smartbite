@@ -79,18 +79,18 @@ cp apps/api/.env.example apps/api/.env
 **Backend**
 - [x] Monorepo setup (Turborepo, Expo, Fastify, Prisma, pnpm)
 - [ ] Supabase project + full schema migration
-- [ ] Auth routes: signup, login, logout, `/auth/me`
-- [ ] `GET /stores/nearby`
-- [ ] User profile CRUD
+- [x] Auth routes: signup, login, logout, `/auth/me`
+- [x] `GET /stores/nearby`
+- [x] User profile CRUD
 
 **Mobile**
 - [x] Expo Router scaffold — 4 tabs, auth screens, recipe detail
 - [x] Offline dependencies installed (netinfo, async-storage)
 - [x] Rate limiting configured (`@fastify/rate-limit`)
-- [x] Auth screens: login, signup
+- [x] Auth screens: login, signup — wired to API
 - [x] Home screen empty state with "Generate plan" CTA
-- [ ] Onboarding flow: location → stores → budget → dietary → complete
-- [ ] Profile screen: stored preferences + edit links
+- [x] Onboarding flow: location → stores → budget → dietary → complete
+- [x] Profile screen: stored preferences + edit links
 
 ---
 
