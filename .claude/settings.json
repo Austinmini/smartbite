@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "read -r input; fp=$(echo \"$input\" | jq -r '.tool_input.file_path'); echo \"$fp\" | grep -q 'apps/api/prisma/schema.prisma' && (cd /Users/momo/Documents/github/smartbite/apps/api && pnpm db:generate 2>&1) || true",
+            "statusMessage": "Regenerating Prisma client..."
+          }
+        ]
+      }
+    ]
+  }
+}

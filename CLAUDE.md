@@ -2848,9 +2848,54 @@ pnpm add @react-native-async-storage/async-storage
 ## Notes for Claude Code
 
 - Run `npx prisma migrate dev` after any schema change
-- Run `npx prisma generate` to regenerate the client
+- Run `npx prisma generate` to regenerate the client (the Prisma hook in `.claude/settings.json` does this automatically on schema edits)
 - All business logic lives in `apps/api/src/services/` — routes are thin
 - Tier enforcement is always done server-side in middleware, never trust the client
 - The `shared/` package contains all TypeScript types used by both `mobile` and `api`
 - Use `pnpm` as the package manager throughout
 - Expo environment variables must be prefixed `EXPO_PUBLIC_` to be accessible on the client
+
+---
+
+## Claude Code workflow rules
+
+### Slash commands
+| Command | What it does |
+|---|---|
+| `/test` | Run full test suite (API + mobile), report pass/fail, fix failures |
+| `/db migrate` | Run `prisma migrate dev` |
+| `/db generate` | Regenerate Prisma client |
+| `/db studio` | Open Prisma Studio |
+| `/sync-progress` | Sync sprint checkboxes from CLAUDE.md → README.md |
+| `/sprint-done N` | Review sprint N, check off tasks, confirm tests green, suggest commit |
+
+### Rules that apply to every task
+
+**Progress tracking**
+- When checking off a task in CLAUDE.md, always run `/sync-progress` (or update README.md manually) in the same commit.
+- CLAUDE.md is the source of truth. README.md mirrors it.
+
+**Testing**
+- Tests ship in the same commit as the feature. Never defer.
+- Run `/test` before marking any sprint item complete.
+- Mock all external APIs (Anthropic, MealMe, Kroger) in tests — never hit real endpoints.
+
+**Database**
+- `prisma generate` runs automatically via hook after schema edits. No manual step needed.
+- `prisma migrate dev` must be run manually and committed with a descriptive migration name.
+- Never edit migration files by hand after they are created.
+
+**Security**
+- Apply rate limits when a route is built, not in Sprint 8.
+- Tier enforcement is always server-side — never trust the client tier claim.
+- Never commit `.env`. Only `.env.test` and `.env.example` are committed.
+
+**API routes**
+- Routes are thin. Business logic goes in `src/services/`, not route handlers.
+- Always return structured errors: `{ error: string }`.
+- Auth middleware (`verifyJWT`) handles both test and production paths — never create a second middleware.
+
+**Mobile**
+- All user-facing price strings use `~$X.XX` format (never bare `$X.XX`).
+- All tappable elements have `minHeight: 44` and a `testID`.
+- Strings are never hardcoded inline — use a constants file when the same string appears more than once.
