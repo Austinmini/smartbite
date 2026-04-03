@@ -3,11 +3,11 @@ import { useFonts } from 'expo-font'
 import { Stack, useRouter, useSegments } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { useEffect } from 'react'
-import 'react-native-reanimated'
-
 import { useColorScheme } from '@/components/useColorScheme'
 import { useAuthStore } from '@/stores/authStore'
 import { useProfileStore } from '@/stores/profileStore'
+// react-native-reanimated bare import omitted — causes import.meta error on web (Reanimated v4)
+// Re-add when animations are needed (Sprint 4+) and web bundling is resolved
 
 export { ErrorBoundary } from 'expo-router'
 
@@ -42,23 +42,32 @@ function RootLayoutNav() {
   const segments = useSegments()
   const router = useRouter()
 
+  // On web, onRehydrateStorage can miss before first render — force it
+  useEffect(() => {
+    const unsub = useAuthStore.persist.onFinishHydration(() => {
+      useAuthStore.getState().setHasHydrated(true)
+    })
+    if (useAuthStore.persist.hasHydrated()) {
+      useAuthStore.getState().setHasHydrated(true)
+    }
+    return unsub
+  }, [])
+
   useEffect(() => {
     if (!_hasHydrated) return
 
     const inAuth = segments[0] === '(auth)'
-    const inTabs = segments[0] === '(tabs)'
 
     if (!token) {
-      // Not logged in — go to login
       if (!inAuth) router.replace('/(auth)/login')
     } else if (!onboardingComplete) {
-      // Logged in but not onboarded
       if (!inAuth) router.replace('/(auth)/onboarding/location')
     } else {
-      // Fully set up — go to tabs
       if (inAuth) router.replace('/(tabs)')
     }
   }, [token, onboardingComplete, _hasHydrated, segments])
+
+  if (!_hasHydrated) return null
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>

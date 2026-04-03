@@ -1,14 +1,17 @@
 import { useState } from 'react'
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native'
-import { Link } from 'expo-router'
+import { Link, useRouter } from 'expo-router'
 import { apiClient } from '@/lib/apiClient'
 import { useAuthStore } from '@/stores/authStore'
+import { useProfileStore } from '@/stores/profileStore'
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const setUser = useAuthStore((s) => s.setUser)
+  const onboardingComplete = useProfileStore((s) => s.onboardingComplete)
+  const router = useRouter()
 
   async function handleLogin() {
     if (!email || !password) {
@@ -22,6 +25,7 @@ export default function LoginScreen() {
         { email, password }
       )
       setUser(res.user, res.access_token)
+      router.replace(onboardingComplete ? '/(tabs)' : '/(auth)/onboarding/location')
     } catch (err: any) {
       Alert.alert('Sign in failed', err.message ?? 'Invalid email or password')
     } finally {

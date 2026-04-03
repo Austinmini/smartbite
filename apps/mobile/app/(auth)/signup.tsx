@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native'
-import { Link } from 'expo-router'
+import { Link, useRouter } from 'expo-router'
 import { apiClient } from '@/lib/apiClient'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -9,6 +9,7 @@ export default function SignupScreen() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const setUser = useAuthStore((s) => s.setUser)
+  const router = useRouter()
 
   async function handleSignup() {
     if (!email || !password) {
@@ -26,6 +27,7 @@ export default function SignupScreen() {
         { email, password }
       )
       setUser(res.user, res.access_token)
+      router.replace('/(auth)/onboarding/location')
     } catch (err: any) {
       const msg = err.status === 409 ? 'An account with this email already exists' : (err.message ?? 'Sign up failed')
       Alert.alert('Sign up failed', msg)
