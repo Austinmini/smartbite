@@ -2,11 +2,13 @@ node_modules/
 .env
 .env.local
 .env.production
-.env.test
-*.env
+# .env.test is intentionally tracked (non-secret test config)
 .expo/
 dist/
 build/
 .turbo/
+coverage/
 *.log
 .DS_Store
+apps/mobile/.expo/
+apps/api/generated/

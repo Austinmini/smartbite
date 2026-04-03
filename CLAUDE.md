@@ -841,19 +841,19 @@ screen with an empty state that says "Generate your first meal plan."
 - Home screen with empty state + "Generate plan" CTA
 
 **Backend tasks:**
-- [ ] Monorepo setup (Turborepo, Expo, Fastify, Prisma, pnpm)
-- [ ] Supabase project + full schema migration (ALL models including rewards/scanner groundwork)
+- [x] Monorepo setup (Turborepo, Expo, Fastify, Prisma, pnpm)
+- [ ] Supabase project + full schema migration (ALL models including rewards/scanner groundwork) — schema written, Supabase project + migration pending
 - [ ] Auth: signup, login, logout, JWT middleware, `/auth/me`
 - [ ] `GET /stores/nearby` — query MealMe store search by lat/lng, return sorted by distance
 - [ ] User profile CRUD — budget, retailers (max 2), dietary, location
 
 **Mobile tasks:**
-- [ ] Expo Router scaffold with tab navigator (4 tabs in S1–S6: Home, Plan, Shop, Saved — Rewards tab added in Sprint 7)
-- [ ] Install offline dependencies: `@react-native-community/netinfo`, `@react-native-async-storage/async-storage`
-- [ ] Install rate limiting: `@fastify/rate-limit` (configured in Sprint 1, limits added per-sprint)
-- [ ] Auth screens: login, signup
+- [x] Expo Router scaffold with tab navigator (4 tabs in S1–S6: Home, Plan, Shop, Saved — Rewards tab added in Sprint 7)
+- [x] Install offline dependencies: `@react-native-community/netinfo`, `@react-native-async-storage/async-storage`
+- [x] Install rate limiting: `@fastify/rate-limit` (configured in Sprint 1, limits added per-sprint)
+- [x] Auth screens: login, signup — screens exist, not yet wired to API
 - [ ] Onboarding flow: location permission → store selector → budget → dietary → complete
-- [ ] Home screen: empty state with "Generate plan" button (button is non-functional until Sprint 2)
+- [x] Home screen: empty state with "Generate plan" button (button is non-functional until Sprint 2)
 - [ ] Profile screen: shows stored preferences, edit links
 
 **Definition of done:**

@@ -1,0 +1,398 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Core user models ────────────────────────────────────────────────────────
+
+model User {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Subscription
+  tier             Tier      @default(FREE)
+  revenueCatUserId String?
+
+  // Profile
+  profile          UserProfile?
+  familyProfiles   FamilyProfile[]
+
+  // App data
+  mealPlans        MealPlan[]
+  favourites       Favourite[]
+  collections      Collection[]
+  priceAlerts      PriceAlert[]
+
+  // Scanner / crowdsourced pricing
+  priceObservations PriceObservation[]
+
+  // Rewards
+  bitesBalance     BitesBalance?
+  bitesLedger      BitesLedger[]
+  badges           UserBadge[]
+  scanStreak       ScanStreak?
+
+  // Referral
+  referralCode     ReferralCode?
+  referralsMade    ReferralEvent[]   @relation("referrer")
+  referredBy       ReferralEvent?    @relation("referred")
+  promoRedemptions PromoRedemption[]
+}
+
+model UserProfile {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id])
+
+  // Budget + shopping
+  weeklyBudget       Float
+  location           Json     // { zip, lat, lng, city }
+  preferredRetailers String[] // max 2, V1_SUPPORTED_CHAINS only
+  maxStores          Int      @default(1) // 1 or 2
+  locationRadius     Int      @default(10) // miles
+
+  // Dietary
+  dietaryGoals       String[] // ["high-protein", "low-carb", "vegan"]
+  allergies          String[] // ["nuts", "gluten", "dairy"]
+  cuisinePrefs       String[] // ["Italian", "Mexican", "Asian"]
+  cookingTimeMax     Int
+  servings           Int      @default(2)
+
+  // Gamification
+  scanCount          Int      @default(0)
+  priceContributions Int      @default(0)
+  contributorScore   Float    @default(1.0)
+}
+
+model FamilyProfile {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  name         String
+  dietaryGoals String[]
+  allergies    String[]
+}
+
+// ─── Meal planning ────────────────────────────────────────────────────────────
+
+model MealPlan {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  createdAt    DateTime @default(now())
+  weekStarting DateTime
+  totalEstCost Float
+  meals        Meal[]
+}
+
+model Meal {
+  id         String   @id @default(cuid())
+  mealPlanId String
+  mealPlan   MealPlan @relation(fields: [mealPlanId], references: [id])
+  dayOfWeek  Int      // 0 = Monday, 6 = Sunday
+  mealType   MealType
+  recipeId   String
+  recipe     Recipe   @relation(fields: [recipeId], references: [id])
+  estCost    Float
+  bestStore  String
+}
+
+model Recipe {
+  id             String          @id @default(cuid())
+  externalId     String?         // Spoonacular ID
+  source         String          // "spoonacular" | "ai_generated" | "user"
+  title          String
+  imageUrl       String?
+  readyInMinutes Int
+  servings       Int
+  ingredients    Json            // [{ name, amount, unit }]
+  instructions   Json            // [{ step, text }]
+  nutrition      Json            // { calories, protein, carbs, fat }
+  tags           String[]
+  cuisineType    String[]
+  diets          String[]
+  createdAt      DateTime        @default(now())
+
+  meals          Meal[]
+  favourites     Favourite[]
+  priceSnapshots PriceSnapshot[]
+}
+
+// ─── Favourites + collections ─────────────────────────────────────────────────
+
+model Favourite {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  recipeId      String
+  recipe        Recipe   @relation(fields: [recipeId], references: [id])
+  savedAt       DateTime @default(now())
+  timesCooked   Int      @default(0)
+  userRating    Int?     // 1-5
+  notes         String?
+  collectionIds String[]
+
+  @@unique([userId, recipeId])
+}
+
+model Collection {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  name      String
+  emoji     String?
+  recipeIds String[]
+  createdAt DateTime @default(now())
+}
+
+// ─── Pricing ─────────────────────────────────────────────────────────────────
+
+model PriceSnapshot {
+  id             String   @id @default(cuid())
+  recipeId       String
+  recipe         Recipe   @relation(fields: [recipeId], references: [id])
+  storeName      String
+  storeId        String?
+  totalCost      Float
+  perIngredient  Json     // [{ ingredient, price, unit, storeId }]
+  capturedAt     DateTime @default(now())
+}
+
+model PriceAlert {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  recipeId    String
+  targetPrice Float
+  triggered   Boolean   @default(false)
+  triggeredAt DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+// ─── Crowdsourced pricing (scanner groundwork — V2 UI, V1 DB) ────────────────
+
+model PriceObservation {
+  id            String   @id @default(cuid())
+  upc           String
+  productName   String?
+  storeId       String
+  storeName     String
+  storeLocation Json     // { lat, lng, address }
+  price         Float
+  unitSize      String?
+  unitPrice     Float?
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  scannedAt     DateTime @default(now())
+  confidence    Float    @default(1.0)
+  verified      Boolean  @default(false)
+
+  @@index([upc, storeId])
+  @@index([storeId, scannedAt])
+}
+
+model CanonicalPrice {
+  id               String   @id @default(cuid())
+  upc              String
+  storeId          String
+  storeName        String
+  weightedPrice    Float
+  observationCount Int
+  lastUpdated      DateTime @updatedAt
+  staleBefore      DateTime
+
+  @@unique([upc, storeId])
+  @@index([upc])
+}
+
+model Product {
+  id        String   @id @default(cuid())
+  upc       String   @unique
+  name      String
+  brand     String?
+  category  String?
+  imageUrl  String?
+  unitSize  String?
+  source    String   // "open_food_facts" | "usda" | "user_submitted"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Rewards / Bites (groundwork — V1 DB, V2 full UI) ────────────────────────
+
+model BitesLedger {
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id])
+  amount      Int         // positive = earn, negative = spend
+  reason      BitesReason
+  referenceId String?
+  createdAt   DateTime    @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model BitesBalance {
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id])
+  balance        Int      @default(0)
+  lifetimeEarned Int      @default(0)
+  updatedAt      DateTime @updatedAt
+}
+
+model UserBadge {
+  id       String    @id @default(cuid())
+  userId   String
+  user     User      @relation(fields: [userId], references: [id])
+  badge    BadgeType
+  earnedAt DateTime  @default(now())
+
+  @@unique([userId, badge])
+}
+
+model ScanStreak {
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id])
+  currentStreak Int       @default(0)
+  longestStreak Int       @default(0)
+  lastScanDate  DateTime?
+  updatedAt     DateTime  @updatedAt
+}
+
+// ─── Referral + promos ────────────────────────────────────────────────────────
+
+model ReferralCode {
+  id        String          @id @default(cuid())
+  userId    String          @unique
+  user      User            @relation(fields: [userId], references: [id])
+  code      String          @unique
+  createdAt DateTime        @default(now())
+  events    ReferralEvent[]
+}
+
+model ReferralEvent {
+  id             String         @id @default(cuid())
+  referrerId     String
+  referredId     String
+  referralCodeId String
+  referralCode   ReferralCode   @relation(fields: [referralCodeId], references: [id])
+  referrer       User           @relation("referrer", fields: [referrerId], references: [id])
+  referred       User           @relation("referred", fields: [referredId], references: [id])
+  status         ReferralStatus @default(PENDING)
+  createdAt      DateTime       @default(now())
+  convertedAt    DateTime?
+  rewards        ReferralReward[]
+
+  @@unique([referredId])
+}
+
+model ReferralReward {
+  id              String        @id @default(cuid())
+  referralEventId String
+  referralEvent   ReferralEvent @relation(fields: [referralEventId], references: [id])
+  userId          String
+  bitesAwarded    Int
+  createdAt       DateTime      @default(now())
+}
+
+model PromoCode {
+  id              String            @id @default(cuid())
+  code            String            @unique
+  description     String
+  type            PromoType
+  value           Json              // { days: 30 } | { bites: 500 } | { multiplier: 2 }
+  maxRedemptions  Int?
+  redemptionCount Int               @default(0)
+  validFrom       DateTime          @default(now())
+  validUntil      DateTime?
+  active          Boolean           @default(true)
+  redemptions     PromoRedemption[]
+}
+
+model PromoRedemption {
+  id          String    @id @default(cuid())
+  promoCodeId String
+  promoCode   PromoCode @relation(fields: [promoCodeId], references: [id])
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  redeemedAt  DateTime  @default(now())
+
+  @@unique([promoCodeId, userId])
+}
+
+// ─── Subscriptions ───────────────────────────────────────────────────────────
+
+model WebhookEvent {
+  id              String   @id @default(cuid())
+  source          String   // "revenuecat"
+  externalEventId String   @unique
+  processedAt     DateTime @default(now())
+}
+
+// ─── Waitlist (Texas geo-restriction) ────────────────────────────────────────
+
+model Waitlist {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  state     String?
+  city      String?
+  createdAt DateTime @default(now())
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Tier {
+  FREE
+  PLUS
+  PRO
+}
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  DINNER
+  SNACK
+}
+
+enum BitesReason {
+  WELCOME_BONUS
+  PRICE_SCAN
+  PIONEER_SCAN
+  VERIFIED_SCAN
+  STALE_UPDATE
+  STREAK_7_DAY
+  STREAK_30_DAY
+  WEEKLY_GOAL
+  REFERRAL_BONUS
+  REDEMPTION
+  ADMIN_ADJUSTMENT
+}
+
+enum BadgeType {
+  FIRST_SCAN
+  STREAK_7_DAY
+  STREAK_30_DAY
+  PIONEER
+  VERIFIED
+  CENTURY
+  PRICE_CHAMPION
+  COMMUNITY_HERO
+}
+
+enum ReferralStatus {
+  PENDING
+  CONVERTED
+  EXPIRED
+}
+
+enum PromoType {
+  PLUS_TRIAL
+  BITES_BONUS
+  REFERRAL_MULTIPLIER
+}
