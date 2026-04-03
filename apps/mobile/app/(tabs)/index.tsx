@@ -29,7 +29,10 @@ export default function HomeScreen() {
         Alert.alert('Plan limit reached', body.error)
         return
       }
-      if (!res.ok) throw new Error('Failed to generate plan')
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? 'Failed to generate plan')
+      }
       const body = await res.json()
       setPlan(body.plan)
     } catch (e: any) {
