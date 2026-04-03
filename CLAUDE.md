@@ -885,22 +885,22 @@ app restarts.
 - Plan persists after closing and reopening the app
 
 **Backend tasks:**
-- [ ] Claude `generateMealPlan` service (claude-sonnet-4-6, full prompt from CLAUDE.md)
-- [ ] `POST /plans/generate` with tier gate (2/week for free tier, Redis counter)
-- [ ] `GET /plans/current` — returns the active plan for the current week (used by Home screen)
-- [ ] `GET /plans` — paginated history, used by a future "past plans" screen
-- [ ] `GET /plans/:id/meals/:mealId` — single meal detail
-- [ ] `POST /plans/:id/regenerate-meal` — regenerate one meal slot
+- [x] Claude `generateMealPlan` service (claude-sonnet-4-6, full prompt from CLAUDE.md)
+- [x] `POST /plans/generate` with tier gate (2/week for free tier, Redis counter)
+- [x] `GET /plans/current` — returns the active plan for the current week (used by Home screen)
+- [x] `GET /plans` — paginated history, used by a future "past plans" screen
+- [x] `GET /plans/:id/meals/:mealId` — single meal detail
+- [x] `POST /plans/:id/regenerate-meal` — regenerate one meal slot
 - [ ] Spoonacular fallback for recipe image lookup by title
 
 **Mobile tasks:**
-- [ ] `MealPlanCard` component — 7-day grid, day tabs, meal type rows
-- [ ] `RecipeCard` component — image, title, time, cost pill, tags
-- [ ] Recipe detail screen — hero image, ingredient list, step-by-step instructions
-- [ ] `NutritionCard` component — calories, protein, carbs, fat
-- [ ] Loading skeleton while plan generates (~8–12s for Claude call)
-- [ ] Error state if generation fails with retry button
-- [ ] "Generate plan" button on home wired to `POST /plans/generate`
+- [x] `MealPlanCard` component — 7-day grid, day tabs, meal type rows
+- [x] `RecipeCard` component — image, title, time, cost pill, tags
+- [x] Recipe detail screen — hero image, ingredient list, step-by-step instructions
+- [x] `NutritionCard` component — calories, protein, carbs, fat
+- [x] Loading skeleton while plan generates (~8–12s for Claude call)
+- [x] Error state if generation fails with retry button
+- [x] "Generate plan" button on home wired to `POST /plans/generate`
 
 **Definition of done:**
 ```

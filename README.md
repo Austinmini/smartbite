@@ -97,9 +97,9 @@ cp apps/api/.env.example apps/api/.env
 ### Sprint 2 — Meal plan generation
 > "I can see a meal plan for my week"
 
-- [ ] AI meal plan generation (Claude)
-- [ ] `POST /plans/generate`, `GET /plans/current`, regenerate single meal
-- [ ] 7-day plan UI, recipe detail, nutrition card
+- [x] AI meal plan generation (Claude)
+- [x] `POST /plans/generate`, `GET /plans/current`, regenerate single meal
+- [x] 7-day plan UI, recipe detail, nutrition card
 
 ---
 
