@@ -22,6 +22,22 @@ jest.mock('../../lib/prisma', () => ({
       create: jest.fn(),
       findUnique: jest.fn(),
     },
+    mealPlan: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      count: jest.fn(),
+      delete: jest.fn(),
+    },
+    meal: {
+      findFirst: jest.fn(),
+      update: jest.fn(),
+    },
+    recipe: {
+      create: jest.fn(),
+      update: jest.fn(),
+    },
+    $transaction: jest.fn(),
     $disconnect: jest.fn(),
   },
 }))

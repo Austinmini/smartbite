@@ -5,6 +5,7 @@ import { healthRoute } from './routes/health'
 import { authRoute } from './routes/auth'
 import { profileRoute } from './routes/profile'
 import { storesRoute } from './routes/stores'
+import { plansRoute } from './routes/plans'
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -26,6 +27,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(authRoute, { prefix: '/auth' })
   await app.register(profileRoute, { prefix: '/profile' })
   await app.register(storesRoute, { prefix: '/stores' })
+  await app.register(plansRoute, { prefix: '/plans' })
 
   return app
 }
