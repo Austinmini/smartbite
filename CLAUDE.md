@@ -2875,10 +2875,17 @@ pnpm add @react-native-async-storage/async-storage
 - When checking off a task in CLAUDE.md, always run `/sync-progress` (or update README.md manually) in the same commit.
 - CLAUDE.md is the source of truth. README.md mirrors it.
 
-**Testing**
-- Tests ship in the same commit as the feature. Never defer.
-- Run `/test` before marking any sprint item complete.
-- Mock all external APIs (Anthropic, MealMe, Kroger) in tests — never hit real endpoints.
+**Testing — TDD is mandatory, order is non-negotiable**
+
+1. Write the test file first. No implementation file may be created or edited until the test file exists.
+2. Run the tests and confirm they **fail**. A test that passes before implementation is a broken test.
+3. Write the minimum implementation to make the tests pass.
+4. Run tests again — confirm green. Then run the full suite to catch regressions.
+5. Commit tests + implementation together. Never commit one without the other.
+
+Use `/tdd <feature>` to start any new feature — it enforces this sequence.
+Run `/test` before marking any sprint item complete.
+Mock all external APIs (Anthropic, MealMe, Kroger, Supabase) — never hit real endpoints in tests.
 
 **Database**
 - `prisma generate` runs automatically via hook after schema edits. No manual step needed.
