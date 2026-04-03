@@ -78,7 +78,7 @@ cp apps/api/.env.example apps/api/.env
 
 **Backend**
 - [x] Monorepo setup (Turborepo, Expo, Fastify, Prisma, pnpm)
-- [ ] Supabase project + full schema migration
+- [x] Supabase project + full schema migration
 - [x] Auth routes: signup, login, logout, `/auth/me`
 - [x] `GET /stores/nearby`
 - [x] User profile CRUD

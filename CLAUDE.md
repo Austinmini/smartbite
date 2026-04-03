@@ -842,7 +842,7 @@ screen with an empty state that says "Generate your first meal plan."
 
 **Backend tasks:**
 - [x] Monorepo setup (Turborepo, Expo, Fastify, Prisma, pnpm)
-- [ ] Supabase project + full schema migration (ALL models including rewards/scanner groundwork) — schema written, Supabase project + migration pending
+- [x] Supabase project + full schema migration (ALL models including rewards/scanner groundwork)
 - [x] Auth: signup, login, logout, JWT middleware, `/auth/me`
 - [x] `GET /stores/nearby` — query MealMe store search by lat/lng, return sorted by distance
 - [x] User profile CRUD — budget, retailers (max 2), dietary, location
