@@ -22,6 +22,7 @@ export default function HomeScreen() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
+        body: JSON.stringify({}),
       })
       if (res.status === 429) {
         const body = await res.json()
