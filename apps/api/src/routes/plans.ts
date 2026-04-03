@@ -36,11 +36,16 @@ export async function plansRoute(app: FastifyInstance) {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { tier: true } })
     if (!user) return reply.status(401).send({ error: 'User not found' })
 
-    // Check tier gate via Redis counter
+    // Check tier gate via Redis counter (fail-open if Redis is unavailable)
     const weekKey = getWeekKey()
     const countKey = `plans:week:${userId}:${weekKey}`
-    const rawCount = await redis.get(countKey)
-    const currentCount = rawCount ? parseInt(rawCount, 10) : 0
+    let currentCount = 0
+    try {
+      const rawCount = await redis.get(countKey)
+      currentCount = rawCount ? parseInt(rawCount, 10) : 0
+    } catch {
+      // Redis unavailable — allow request, tier gate is best-effort
+    }
 
     const limit = TIER_LIMITS[user.tier as keyof typeof TIER_LIMITS]?.mealPlansPerWeek ?? 2
     if (currentCount >= limit) {
@@ -64,11 +69,14 @@ export async function plansRoute(app: FastifyInstance) {
     // Save to DB
     const saved = await saveMealPlan(userId, planData)
 
-    // Increment Redis counter; set TTL on first use
-    const newCount = await redis.incr(countKey)
-    if (newCount === 1) {
-      // Expire at end of week (7 days max)
-      await redis.expire(countKey, 7 * 24 * 60 * 60)
+    // Increment Redis counter; set TTL on first use (best-effort — Redis may be unavailable)
+    try {
+      const newCount = await redis.incr(countKey)
+      if (newCount === 1) {
+        await redis.expire(countKey, 7 * 24 * 60 * 60)
+      }
+    } catch {
+      // Redis unavailable — counter not incremented, acceptable for now
     }
 
     return reply.status(201).send({ plan: saved })
