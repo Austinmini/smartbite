@@ -33,9 +33,9 @@ describe('RecipeCard', () => {
     expect(getByText('10 min')).toBeTruthy()
   })
 
-  it('shows estimated cost with ~ prefix', () => {
+  it('shows estimated total recipe cost', () => {
     const { getByText } = render(<RecipeCard meal={mockMeal} onPress={() => {}} />)
-    expect(getByText('~$2.50')).toBeTruthy()
+    expect(getByText('~$2.50 total')).toBeTruthy()
   })
 
   it('shows meal type label', () => {

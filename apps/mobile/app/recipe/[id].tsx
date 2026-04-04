@@ -33,6 +33,7 @@ export default function RecipeDetailScreen() {
       // Update meal in plan
       const updatedPlan = {
         ...plan,
+        totalEstCost: body.totalEstCost ?? plan.totalEstCost,
         meals: plan.meals.map((m) => (m.id === meal.id ? { ...m, ...body.meal } : m)),
       }
       useMealPlanStore.getState().setPlan(updatedPlan)
@@ -63,7 +64,7 @@ export default function RecipeDetailScreen() {
         <View style={styles.metaRow}>
           <Text style={styles.metaItem}>{recipe.readyInMinutes} min</Text>
           <Text style={styles.metaItem}>{recipe.servings} servings</Text>
-          <Text style={styles.metaItem}>~${meal.estCost.toFixed(2)}/serving</Text>
+          <Text style={styles.metaItem}>~${meal.estCost.toFixed(2)} total</Text>
         </View>
       </View>
 

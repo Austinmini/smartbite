@@ -67,7 +67,7 @@ export async function plansRoute(app: FastifyInstance) {
     })
 
     // Save to DB
-    const saved = await saveMealPlan(userId, planData)
+    const saved = await saveMealPlan(userId, planData, profile.servings)
 
     // Increment Redis counter; set TTL on first use (best-effort — Redis may be unavailable)
     try {
@@ -122,7 +122,7 @@ export async function plansRoute(app: FastifyInstance) {
       return reply.status(400).send({ error: 'Profile not found' })
     }
 
-    const meal = await regenerateMeal(planId, mealId, profile as any)
-    return reply.status(200).send({ meal })
+    const result = await regenerateMeal(planId, mealId, profile as any)
+    return reply.status(200).send(result)
   })
 }

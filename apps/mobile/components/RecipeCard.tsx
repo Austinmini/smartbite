@@ -17,7 +17,7 @@ export function RecipeCard({ meal, onPress }: Props) {
     >
       <View style={styles.header}>
         <Text style={styles.mealType}>{meal.mealType}</Text>
-        <Text style={styles.cost}>~${meal.estCost.toFixed(2)}</Text>
+        <Text style={styles.cost}>~${meal.estCost.toFixed(2)} total</Text>
       </View>
       <Text style={styles.title} numberOfLines={2}>
         {meal.recipe.title}

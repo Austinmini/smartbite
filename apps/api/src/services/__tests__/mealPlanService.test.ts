@@ -4,10 +4,13 @@ jest.mock('../../lib/anthropic', () => ({
   },
 }))
 
+import '../../test/mocks/prisma'
 import { anthropic } from '../../lib/anthropic'
-import { generateMealPlan } from '../mealPlanService'
+import { prisma } from '../../lib/prisma'
+import { generateMealPlan, regenerateMeal, saveMealPlan } from '../mealPlanService'
 
 const anthropicCreate = anthropic.messages.create as jest.Mock
+const prismaMock = prisma as any
 
 const mockProfile = {
   weeklyBudget: 100,
@@ -115,6 +118,19 @@ describe('generateMealPlan', () => {
     expect(prompt).toContain('150')
   })
 
+  it('requests a 3-meal testing plan instead of a full week', async () => {
+    anthropicCreate.mockResolvedValue({
+      content: [{ type: 'text', text: JSON.stringify(mockPlanData) }],
+    })
+
+    await generateMealPlan({ profile: mockProfile, weekBudget: 100 })
+
+    const prompt = anthropicCreate.mock.calls[0][0].messages[0].content as string
+    expect(prompt).toContain('exactly 1 day')
+    expect(prompt).toContain('exactly 3 meals total')
+    expect(prompt).toContain('BREAKFAST, LUNCH, DINNER')
+  })
+
   it('includes favourites context when provided', async () => {
     anthropicCreate.mockResolvedValue({
       content: [{ type: 'text', text: JSON.stringify(mockPlanData) }],
@@ -139,5 +155,114 @@ describe('generateMealPlan', () => {
 
     const prompt = anthropicCreate.mock.calls[0][0].messages[0].content as string
     expect(prompt).not.toContain('most-cooked')
+  })
+
+  it('parses JSON when Claude wraps it with extra text', async () => {
+    anthropicCreate.mockResolvedValue({
+      content: [
+        {
+          type: 'text',
+          text: `Here is your plan:\n${JSON.stringify(mockPlanData)}\nEnjoy!`,
+        },
+      ],
+    })
+
+    const result = await generateMealPlan({ profile: mockProfile, weekBudget: 100 })
+
+    expect(result.totalEstCost).toBe(95.5)
+  })
+})
+
+describe('saveMealPlan', () => {
+  it('stores meal and plan costs using total recipe servings', async () => {
+    prismaMock.mealPlan.create.mockResolvedValue({
+      id: 'plan-1',
+      totalEstCost: 5,
+      meals: [],
+    })
+
+    await saveMealPlan('user-1', mockPlanData, 2)
+
+    expect(prismaMock.mealPlan.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          totalEstCost: 5,
+          meals: {
+            create: [
+              expect.objectContaining({
+                estCost: 5,
+                recipe: {
+                  create: expect.objectContaining({
+                    servings: 2,
+                  }),
+                },
+              }),
+            ],
+          },
+        }),
+      })
+    )
+  })
+})
+
+describe('regenerateMeal', () => {
+  it('stores regenerated meal cost as total recipe cost and updates plan total', async () => {
+    prismaMock.meal.findFirst.mockResolvedValue({
+      id: 'meal-1',
+      mealPlanId: 'plan-1',
+      recipeId: 'recipe-1',
+      mealType: 'BREAKFAST',
+      estCost: 5,
+      recipe: { id: 'recipe-1' },
+    })
+    anthropicCreate.mockResolvedValue({
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            mealType: 'BREAKFAST',
+            title: 'Oats Bowl',
+            estCostPerServing: 3,
+            readyInMinutes: 12,
+            tags: ['high-protein'],
+            ingredients: [{ name: 'oats', amount: 1, unit: 'cup' }],
+            instructions: [{ step: 1, text: 'Cook oats' }],
+            nutrition: { calories: 320, protein: 20, carbs: 40, fat: 8 },
+          }),
+        },
+      ],
+    })
+    prismaMock.recipe.update.mockResolvedValue({ id: 'recipe-1' })
+    prismaMock.meal.update.mockResolvedValue({
+      id: 'meal-1',
+      mealPlanId: 'plan-1',
+      estCost: 6,
+      recipe: { id: 'recipe-1', servings: 2 },
+    })
+    prismaMock.meal.findMany.mockResolvedValue([
+      { id: 'meal-1', mealPlanId: 'plan-1', estCost: 6 },
+      { id: 'meal-2', mealPlanId: 'plan-1', estCost: 4 },
+    ])
+    prismaMock.mealPlan.update.mockResolvedValue({ id: 'plan-1', totalEstCost: 10 })
+
+    const result = await regenerateMeal('plan-1', 'meal-1', mockProfile)
+
+    expect(prismaMock.meal.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { estCost: 6 },
+      })
+    )
+    expect(prismaMock.recipe.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          servings: 2,
+        }),
+      })
+    )
+    expect(prismaMock.mealPlan.update).toHaveBeenCalledWith({
+      where: { id: 'plan-1' },
+      data: { totalEstCost: 10 },
+    })
+    expect(result.totalEstCost).toBe(10)
   })
 })

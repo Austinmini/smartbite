@@ -39,6 +39,48 @@ export interface GeneratedPlan {
 
 // ─── Generate ─────────────────────────────────────────────────────────────────
 
+const TEST_PLAN_DAY_COUNT = 1
+const TEST_PLAN_MEAL_TYPES = ['BREAKFAST', 'LUNCH', 'DINNER'] as const
+
+function roundCurrency(amount: number): number {
+  return Math.round(amount * 100) / 100
+}
+
+function getMealEstimatedCost(estCostPerServing: number, servings: number): number {
+  return roundCurrency(estCostPerServing * servings)
+}
+
+function getPlanEstimatedCost(planData: GeneratedPlan, servings: number): number {
+  const total = planData.days.reduce(
+    (sum, day) =>
+      sum +
+      day.meals.reduce(
+        (daySum, meal) => daySum + getMealEstimatedCost(meal.estCostPerServing, servings),
+        0
+      ),
+    0
+  )
+
+  return roundCurrency(total)
+}
+
+function parseJsonResponse<T>(rawText: string): T {
+  const withoutFences = rawText.replace(/```json|```/g, '').trim()
+  const firstBrace = withoutFences.indexOf('{')
+  const lastBrace = withoutFences.lastIndexOf('}')
+  const jsonCandidate =
+    firstBrace >= 0 && lastBrace >= firstBrace
+      ? withoutFences.slice(firstBrace, lastBrace + 1)
+      : withoutFences
+
+  try {
+    return JSON.parse(jsonCandidate) as T
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : 'Unknown JSON parse error'
+    throw new Error(`Claude returned invalid JSON: ${detail}`)
+  }
+}
+
 export async function generateMealPlan(input: GeneratePlanInput): Promise<GeneratedPlan> {
   const { profile, weekBudget, favourites } = input
 
@@ -52,7 +94,7 @@ export async function generateMealPlan(input: GeneratePlanInput): Promise<Genera
 
   const prompt = `You are a nutritionist and meal planning assistant.
 
-Generate a 7-day meal plan (breakfast, lunch, dinner) for a user with these requirements:
+Generate a test meal plan with exactly ${TEST_PLAN_DAY_COUNT} day and exactly ${TEST_PLAN_MEAL_TYPES.length} meals total for a user with these requirements:
 - Weekly food budget: $${weekBudget}
 - Dietary goals: ${profile.dietaryGoals.join(', ') || 'balanced'}
 - Allergies / restrictions: ${profile.allergies.join(', ') || 'none'}
@@ -60,6 +102,13 @@ Generate a 7-day meal plan (breakfast, lunch, dinner) for a user with these requ
 - Max cooking time per meal: ${profile.cookingTimeMax} minutes
 - Servings per meal: ${profile.servings}
 ${favouritesContext}
+
+For this testing plan:
+- Return exactly one day with "dayOfWeek": 0
+- Include exactly these meals in order: BREAKFAST, LUNCH, DINNER
+- Do not include any other days or meal types
+
+Be concise: keep ingredient lists to 5-8 items and instructions to 3-5 steps per meal.
 
 Respond ONLY with a valid JSON object in this exact shape:
 {
@@ -85,13 +134,12 @@ Respond ONLY with a valid JSON object in this exact shape:
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 8000,
+    max_tokens: 5000,
     messages: [{ role: 'user', content: prompt }],
   })
 
   const text = response.content[0].type === 'text' ? response.content[0].text : ''
-  const clean = text.replace(/```json|```/g, '').trim()
-  return JSON.parse(clean) as GeneratedPlan
+  return parseJsonResponse<GeneratedPlan>(text)
 }
 
 // ─── Save ─────────────────────────────────────────────────────────────────────
@@ -106,27 +154,28 @@ function getWeekStart(): Date {
   return monday
 }
 
-export async function saveMealPlan(userId: string, planData: GeneratedPlan) {
+export async function saveMealPlan(userId: string, planData: GeneratedPlan, servings: number) {
   const weekStarting = getWeekStart()
+  const totalEstCost = getPlanEstimatedCost(planData, servings)
 
   const mealPlan = await prisma.mealPlan.create({
     data: {
       userId,
       weekStarting,
-      totalEstCost: planData.totalEstCost,
+      totalEstCost,
       meals: {
         create: planData.days.flatMap((day) =>
           day.meals.map((meal) => ({
             dayOfWeek: day.dayOfWeek,
             mealType: meal.mealType as any,
-            estCost: meal.estCostPerServing,
+            estCost: getMealEstimatedCost(meal.estCostPerServing, servings),
             bestStore: '',
             recipe: {
               create: {
                 source: 'ai_generated',
                 title: meal.title,
                 readyInMinutes: meal.readyInMinutes,
-                servings: 2,
+                servings,
                 ingredients: meal.ingredients,
                 instructions: meal.instructions,
                 nutrition: meal.nutrition,
@@ -232,14 +281,15 @@ Respond ONLY with a valid JSON object in this exact shape:
   })
 
   const text = response.content[0].type === 'text' ? response.content[0].text : ''
-  const clean = text.replace(/```json|```/g, '').trim()
-  const newMealData: GeneratedMeal = JSON.parse(clean)
+  const newMealData = parseJsonResponse<GeneratedMeal>(text)
+  const normalizedMealCost = getMealEstimatedCost(newMealData.estCostPerServing, profile.servings)
 
   const updatedRecipe = await prisma.recipe.update({
     where: { id: existing.recipeId },
     data: {
       title: newMealData.title,
       readyInMinutes: newMealData.readyInMinutes,
+      servings: profile.servings,
       ingredients: newMealData.ingredients,
       instructions: newMealData.instructions,
       nutrition: newMealData.nutrition,
@@ -249,9 +299,25 @@ Respond ONLY with a valid JSON object in this exact shape:
 
   const updatedMeal = await prisma.meal.update({
     where: { id: mealId },
-    data: { estCost: newMealData.estCostPerServing },
+    data: { estCost: normalizedMealCost },
     include: { recipe: true },
   })
 
-  return updatedMeal
+  const siblingMeals = await prisma.meal.findMany({
+    where: { mealPlanId: planId },
+  })
+
+  const totalEstCost = roundCurrency(
+    siblingMeals.reduce(
+      (sum, meal) => sum + (meal.id === mealId ? normalizedMealCost : meal.estCost),
+      0
+    )
+  )
+
+  await prisma.mealPlan.update({
+    where: { id: planId },
+    data: { totalEstCost },
+  })
+
+  return { meal: updatedMeal, totalEstCost }
 }

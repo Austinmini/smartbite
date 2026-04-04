@@ -27,10 +27,12 @@ jest.mock('../../lib/prisma', () => ({
       findFirst: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
+      update: jest.fn(),
       delete: jest.fn(),
     },
     meal: {
       findFirst: jest.fn(),
+      findMany: jest.fn(),
       update: jest.fn(),
     },
     recipe: {

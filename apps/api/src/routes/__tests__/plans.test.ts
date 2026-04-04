@@ -132,6 +132,7 @@ describe('POST /plans/generate', () => {
     expect(res.statusCode).toBe(201)
     expect(res.json().plan.id).toBe('plan-1')
     expect(res.json().plan.totalEstCost).toBe(95.5)
+    expect(svcMock.saveMealPlan).toHaveBeenCalledWith('user-1', mockPlanData, 2)
   })
 
   it('returns 429 when free user has used 2 plans this week', async () => {
@@ -296,7 +297,10 @@ describe('GET /plans/:id/meals/:mealId', () => {
 describe('POST /plans/:id/regenerate-meal', () => {
   it('regenerates a single meal and returns updated meal', async () => {
     prismaMock.userProfile.findUnique.mockResolvedValue(mockProfile)
-    svcMock.regenerateMeal.mockResolvedValue(mockSavedPlan.meals[0] as any)
+    svcMock.regenerateMeal.mockResolvedValue({
+      meal: mockSavedPlan.meals[0],
+      totalEstCost: mockSavedPlan.totalEstCost,
+    } as any)
 
     const res = await app.inject({
       method: 'POST',
@@ -307,6 +311,7 @@ describe('POST /plans/:id/regenerate-meal', () => {
 
     expect(res.statusCode).toBe(200)
     expect(res.json().meal.id).toBe('meal-1')
+    expect(res.json().totalEstCost).toBe(95.5)
   })
 
   it('returns 400 when mealId is missing', async () => {
