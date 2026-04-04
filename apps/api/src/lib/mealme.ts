@@ -23,3 +23,50 @@ export async function queryNearbyStores(lat: number, lng: number, radiusMiles = 
     lng: s.lng ?? lng,
   }))
 }
+
+export interface MealMePriceRequest {
+  ingredient: { name: string; amount: number; unit: string }
+  store: { storeId: string; storeName: string; chain: string }
+}
+
+export interface MealMePriceResult {
+  price: number
+  unit: string
+  available: boolean
+  source: 'api'
+}
+
+export async function queryMealMe(
+  params: MealMePriceRequest
+): Promise<MealMePriceResult | null> {
+  const apiKey = process.env.MEALME_API_KEY
+  if (!apiKey) return null
+
+  const res = await fetch('https://api.mealme.ai/v3/products/search', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query: params.ingredient.name,
+      store_id: params.store.storeId,
+      limit: 1,
+    }),
+  })
+
+  if (!res.ok) return null
+
+  const data = (await res.json()) as { products?: Array<Record<string, any>> }
+  const product = data.products?.[0]
+  const price = product?.price ?? product?.sale_price ?? product?.offers?.[0]?.price
+
+  if (typeof price !== 'number') return null
+
+  return {
+    price: Math.round(price * 100) / 100,
+    unit: params.ingredient.unit,
+    available: true,
+    source: 'api',
+  }
+}

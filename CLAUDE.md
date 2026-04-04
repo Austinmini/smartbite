@@ -932,21 +932,21 @@ checkable.
 - Tap an ingredient on the list to check it off
 
 **Backend tasks:**
-- [ ] MealMe API client — `queryMealMe`, response normalisation, error handling
-- [ ] Kroger API client — OAuth2, product search, price extraction
-- [ ] `scanPrices` orchestrator — fan out to user's stores, compute `bestSingleStore` + `bestSplitOption`
-- [ ] Split optimizer — greedy per-ingredient algorithm, `SPLIT_THRESHOLD = $3`
-- [ ] `GET /prices/scan?recipeId=&planId=` with store count tier gate
-- [ ] Redis price cache — 1hr TTL per `(recipeId, storeList)` hash
-- [ ] `GET /shopping-list/:planId` — full week's ingredients merged, deduped, sorted by store
+- [x] MealMe API client — `queryMealMe`, response normalisation, error handling
+- [x] Kroger API client — OAuth2, product search, price extraction
+- [x] `scanPrices` orchestrator — fan out to user's stores, compute `bestSingleStore` + `bestSplitOption`
+- [x] Split optimizer — greedy per-ingredient algorithm, `SPLIT_THRESHOLD = $3`
+- [x] `GET /prices/scan?recipeId=&planId=` with store count tier gate
+- [x] Redis price cache — 1hr TTL per `(recipeId, storeList)` hash
+- [x] `GET /shopping-list/:planId` — full week's ingredients merged, deduped, sorted by store
 
 **Mobile tasks:**
-- [ ] Price section on recipe detail — ingredient rows with per-store prices
-- [ ] `PriceCompareBar` component — store comparison strip
-- [ ] `BestStoreCard` component — winner card with distance, total, savings callout
-- [ ] Mode toggle — "Best single store" / "2-store split"
-- [ ] Split view — two store cards with their assigned items
-- [ ] Shopping list screen — grouped by store, checkable rows, progress bar
+- [x] Price section on recipe detail — ingredient rows with per-store prices
+- [x] `PriceCompareBar` component — store comparison strip
+- [x] `BestStoreCard` component — winner card with distance, total, savings callout
+- [x] Mode toggle — "Best single store" / "2-store split"
+- [x] Split view — two store cards with their assigned items
+- [x] Shopping list screen — grouped by store, checkable rows, progress bar
 - [ ] "Add to this week's plan" CTA on recipe detail
 
 **Definition of done:**

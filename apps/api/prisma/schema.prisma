@@ -55,6 +55,7 @@ model UserProfile {
   weeklyBudget       Float
   location           Json     // { zip, lat, lng, city }
   preferredRetailers String[] // max 2, V1_SUPPORTED_CHAINS only
+  selectedStores     Json?    // [{ id, name, chain, distanceMiles, address, lat, lng }]
   maxStores          Int      @default(1) // 1 or 2
   locationRadius     Int      @default(10) // miles
 

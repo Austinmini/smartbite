@@ -51,13 +51,14 @@
   "private": true,
   "jest": {
     "preset": "react-native",
-    "setupFilesAfterFramework": [
+    "setupFilesAfterEnv": [
       "@testing-library/jest-native/extend-expect"
     ],
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/$1"
+    },
     "collectCoverageFrom": [
-      "app/**/*.tsx",
       "components/**/*.tsx",
-      "hooks/**/*.ts",
       "stores/**/*.ts"
     ],
     "coverageThreshold": {

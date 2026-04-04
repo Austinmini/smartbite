@@ -17,6 +17,7 @@ interface ProfileState {
   weeklyBudget: number
   location: { zip?: string; lat?: number; lng?: number; city?: string } | null
   preferredRetailers: string[]   // max 2, V1 chain keys
+  selectedStores: StoreItem[]
   nearbyStores: StoreItem[]      // loaded from API during onboarding
   dietaryGoals: string[]
   allergies: string[]
@@ -28,6 +29,7 @@ interface ProfileState {
   setWeeklyBudget: (budget: number) => void
   setLocation: (loc: ProfileState['location']) => void
   setNearbyStores: (stores: StoreItem[]) => void
+  toggleStore: (store: StoreItem) => void
   toggleRetailer: (chain: string) => void
   setDietaryGoals: (goals: string[]) => void
   setAllergies: (a: string[]) => void
@@ -43,6 +45,7 @@ export const useProfileStore = create<ProfileState>()(
       weeklyBudget: 100,
       location: null,
       preferredRetailers: [],
+      selectedStores: [],
       nearbyStores: [],
       dietaryGoals: [],
       allergies: [],
@@ -54,10 +57,32 @@ export const useProfileStore = create<ProfileState>()(
       setWeeklyBudget: (budget) => set({ weeklyBudget: budget }),
       setLocation: (loc) => set({ location: loc }),
       setNearbyStores: (stores) => set({ nearbyStores: stores }),
+      toggleStore: (store) => {
+        const current = get().selectedStores
+        const exists = current.some((selected) => selected.id === store.id)
+
+        if (exists) {
+          const selectedStores = current.filter((selected) => selected.id !== store.id)
+          set({
+            selectedStores,
+            preferredRetailers: selectedStores.map((selected) => selected.chain),
+          })
+        } else if (current.length < 2) {
+          const selectedStores = [...current, store]
+          set({
+            selectedStores,
+            preferredRetailers: selectedStores.map((selected) => selected.chain),
+          })
+        }
+      },
       toggleRetailer: (chain) => {
         const current = get().preferredRetailers
         if (current.includes(chain)) {
-          set({ preferredRetailers: current.filter((r) => r !== chain) })
+          const selectedStores = get().selectedStores.filter((store) => store.chain !== chain)
+          set({
+            preferredRetailers: current.filter((r) => r !== chain),
+            selectedStores,
+          })
         } else if (current.length < 2) {
           set({ preferredRetailers: [...current, chain] })
         }
@@ -76,6 +101,7 @@ export const useProfileStore = create<ProfileState>()(
         weeklyBudget: state.weeklyBudget,
         location: state.location,
         preferredRetailers: state.preferredRetailers,
+        selectedStores: state.selectedStores,
         dietaryGoals: state.dietaryGoals,
         allergies: state.allergies,
         cuisinePrefs: state.cuisinePrefs,

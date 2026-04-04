@@ -8,7 +8,7 @@ import { useProfileStore } from '@/stores/profileStore'
 export default function CompleteScreen() {
   const router = useRouter()
   const token = useAuthStore((s) => s.token)
-  const { weeklyBudget, location, preferredRetailers, dietaryGoals, allergies, setOnboardingComplete } = useProfileStore()
+  const { weeklyBudget, location, preferredRetailers, selectedStores, dietaryGoals, allergies, setOnboardingComplete } = useProfileStore()
   const [saving, setSaving] = useState(false)
 
   async function finishOnboarding() {
@@ -20,6 +20,7 @@ export default function CompleteScreen() {
           weeklyBudget,
           location: location ?? {},
           preferredRetailers,
+          selectedStores,
           dietaryGoals,
           allergies,
         },
@@ -41,7 +42,7 @@ export default function CompleteScreen() {
 
       <View style={styles.summary}>
         <SummaryRow label="Weekly budget" value={`$${weeklyBudget}`} />
-        <SummaryRow label="Stores" value={preferredRetailers.length > 0 ? preferredRetailers.join(', ') : '—'} />
+        <SummaryRow label="Stores" value={selectedStores.length > 0 ? selectedStores.map((store) => store.name).join(', ') : '—'} />
         <SummaryRow label="Dietary goals" value={dietaryGoals.length > 0 ? dietaryGoals.join(', ') : 'None set'} />
         <SummaryRow label="Allergies" value={allergies.length > 0 ? allergies.join(', ') : 'None'} />
       </View>

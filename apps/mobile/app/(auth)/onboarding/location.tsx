@@ -18,7 +18,7 @@ const CHAIN_LOGOS: Record<string, { bg: string; text: string; color: string }> =
 export default function LocationScreen() {
   const router = useRouter()
   const token = useAuthStore((s) => s.token)
-  const { nearbyStores, preferredRetailers, setLocation, setNearbyStores, toggleRetailer } = useProfileStore()
+  const { nearbyStores, selectedStores, setLocation, setNearbyStores, toggleStore } = useProfileStore()
   const [loadingLocation, setLoadingLocation] = useState(false)
   const [locationGranted, setLocationGranted] = useState(nearbyStores.length > 0)
 
@@ -51,14 +51,14 @@ export default function LocationScreen() {
   }
 
   function renderStore({ item }: { item: StoreItem }) {
-    const selected = preferredRetailers.includes(item.chain ?? '')
-    const disabled = !selected && preferredRetailers.length >= 2
+    const selected = selectedStores.some((store) => store.id === item.id)
+    const disabled = !selected && selectedStores.length >= 2
     const logo = CHAIN_LOGOS[item.chain ?? ''] ?? { bg: '#F5F5F5', text: '?', color: '#666' }
 
     return (
       <TouchableOpacity
         style={[styles.storeRow, selected && styles.storeRowSelected, disabled && styles.storeRowDisabled]}
-        onPress={() => !disabled && toggleRetailer(item.chain ?? '')}
+        onPress={() => !disabled && toggleStore(item)}
         disabled={disabled}
         accessibilityLabel={`${item.name}, ${item.distanceMiles.toFixed(1)} miles`}
         testID={`store-${item.chain}`}
@@ -71,7 +71,7 @@ export default function LocationScreen() {
           <Text style={[styles.storeDist, disabled && styles.textDisabled]}>{item.distanceMiles.toFixed(1)} mi away</Text>
         </View>
         <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
-          {selected && <Text style={styles.checkmark}>✓</Text>}
+            {selected && <Text style={styles.checkmark}>✓</Text>}
         </View>
       </TouchableOpacity>
     )
@@ -95,7 +95,7 @@ export default function LocationScreen() {
       ) : (
         <>
           <Text style={styles.hint}>
-            {preferredRetailers.length === 2 ? 'Max 2 stores selected' : `${preferredRetailers.length}/2 selected`}
+            {selectedStores.length === 2 ? 'Max 2 stores selected' : `${selectedStores.length}/2 selected`}
           </Text>
           <FlatList
             data={nearbyStores}
@@ -108,9 +108,9 @@ export default function LocationScreen() {
       )}
 
       <TouchableOpacity
-        style={[styles.btn, preferredRetailers.length === 0 && styles.btnDisabled]}
+        style={[styles.btn, selectedStores.length === 0 && styles.btnDisabled]}
         onPress={() => router.push('/(auth)/onboarding/budget')}
-        disabled={preferredRetailers.length === 0}
+        disabled={selectedStores.length === 0}
         testID="continue-btn"
       >
         <Text style={styles.btnText}>Continue</Text>

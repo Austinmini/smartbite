@@ -21,6 +21,26 @@ const VALID_PROFILE = {
   weeklyBudget: 120,
   location: { zip: '78701', lat: 30.27, lng: -97.74, city: 'Austin' },
   preferredRetailers: ['heb', 'walmart'],
+  selectedStores: [
+    {
+      id: 'store-heb-1',
+      name: 'HEB South Congress',
+      chain: 'heb',
+      distanceMiles: 0.8,
+      address: '123 S Congress Ave',
+      lat: 30.25,
+      lng: -97.75,
+    },
+    {
+      id: 'store-walmart-1',
+      name: 'Walmart Supercenter',
+      chain: 'walmart',
+      distanceMiles: 1.4,
+      address: '456 Ben White Blvd',
+      lat: 30.23,
+      lng: -97.78,
+    },
+  ],
   dietaryGoals: ['high-protein'],
   allergies: [],
   cuisinePrefs: ['Mexican'],
@@ -64,6 +84,18 @@ describe('PUT /profile', () => {
 
     expect(res.statusCode).toBe(200)
     expect(res.json().profile).toMatchObject({ weeklyBudget: 120 })
+    expect(prismaMock.userProfile.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({
+          selectedStores: VALID_PROFILE.selectedStores,
+          maxStores: 2,
+        }),
+        create: expect.objectContaining({
+          selectedStores: VALID_PROFILE.selectedStores,
+          maxStores: 2,
+        }),
+      })
+    )
   })
 
   it('rejects more than 2 preferred retailers', async () => {
@@ -89,6 +121,22 @@ describe('PUT /profile', () => {
   it('returns 401 without auth', async () => {
     const res = await app.inject({ method: 'PUT', url: '/profile', payload: VALID_PROFILE })
     expect(res.statusCode).toBe(401)
+  })
+
+  it('rejects selected stores that do not match preferred retailers', async () => {
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/profile',
+      headers: authHeaders(),
+      payload: {
+        ...VALID_PROFILE,
+        preferredRetailers: ['heb'],
+        selectedStores: VALID_PROFILE.selectedStores,
+      },
+    })
+
+    expect(res.statusCode).toBe(400)
+    expect(res.json().error).toMatch(/selectedStores/i)
   })
 })
 

@@ -3,6 +3,38 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMealPlanStore } from '../../stores/mealPlanStore'
 import { useAuthStore } from '../../stores/authStore'
 import { NutritionCard } from '../../components/NutritionCard'
+import { PriceCompareBar } from '../../components/PriceCompareBar'
+import { BestStoreCard } from '../../components/BestStoreCard'
+import { apiClient } from '../../lib/apiClient'
+
+interface PriceItem {
+  ingredient: string
+  price: number
+  unit: string
+  available: boolean
+}
+
+interface PriceStoreResult {
+  storeId: string
+  storeName: string
+  totalCost: number
+  distanceMiles: number
+  items: PriceItem[]
+}
+
+interface SplitOption {
+  totalCost: number
+  savings: number
+  worthSplitting: boolean
+  stores: Array<PriceStoreResult & { subtotal: number; assignedItems: string[] }>
+}
+
+interface PriceScanResponse {
+  bestSingleStore: PriceStoreResult
+  bestSplitOption: SplitOption | null
+  storeResults: PriceStoreResult[]
+  cached: boolean
+}
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'
 
@@ -12,9 +44,49 @@ export default function RecipeDetailScreen() {
   const plan = useMealPlanStore((s) => s.plan)
   const token = useAuthStore((s) => s.token)
   const [regenerating, setRegenerating] = React.useState(false)
+  const [priceData, setPriceData] = React.useState<PriceScanResponse | null>(null)
+  const [priceMode, setPriceMode] = React.useState<'single' | 'split'>('single')
+  const [selectedStoreId, setSelectedStoreId] = React.useState<string | null>(null)
+  const [priceLoading, setPriceLoading] = React.useState(false)
+  const [priceError, setPriceError] = React.useState<string | null>(null)
 
   // Find meal by id
   const meal = plan?.meals.find((m) => m.id === id)
+
+  React.useEffect(() => {
+    let active = true
+
+    async function loadPrices() {
+      if (!meal || !plan || !token) return
+
+      setPriceLoading(true)
+      setPriceError(null)
+
+      try {
+        const response = await apiClient.get<PriceScanResponse>(
+          `/prices/scan?recipeId=${meal.recipe.id}&planId=${plan.id}`,
+          token
+        )
+
+        if (!active) return
+
+        setPriceData(response)
+        setSelectedStoreId(response.bestSingleStore.storeId)
+        setPriceMode(response.bestSplitOption ? 'split' : 'single')
+      } catch (err: any) {
+        if (active) {
+          setPriceError(err.message ?? 'Could not load live prices.')
+        }
+      } finally {
+        if (active) setPriceLoading(false)
+      }
+    }
+
+    loadPrices()
+    return () => {
+      active = false
+    }
+  }, [meal, plan, token])
 
   async function handleRegenerate() {
     if (!meal || !plan) return
@@ -54,6 +126,7 @@ export default function RecipeDetailScreen() {
   }
 
   const { recipe } = meal
+  const selectedStore = priceData?.storeResults.find((store) => store.storeId === selectedStoreId)
 
   return (
     <ScrollView style={styles.container} testID="recipe-detail-screen">
@@ -84,6 +157,95 @@ export default function RecipeDetailScreen() {
             </Text>
           </View>
         ))}
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Live pricing</Text>
+        {priceLoading ? <ActivityIndicator size="small" color="#22c55e" /> : null}
+        {priceError ? <Text style={styles.errorText}>{priceError}</Text> : null}
+        {priceData ? (
+          <View style={styles.pricingStack}>
+            <BestStoreCard
+              title="Best single store"
+              storeName={priceData.bestSingleStore.storeName}
+              totalCost={priceData.bestSingleStore.totalCost}
+              distanceMiles={priceData.bestSingleStore.distanceMiles}
+              savingsLabel={
+                priceData.bestSplitOption
+                  ? `Split basket saves $${priceData.bestSplitOption.savings.toFixed(2)}`
+                  : undefined
+              }
+            />
+
+            <PriceCompareBar
+              storeResults={priceData.storeResults}
+              selectedStoreId={selectedStoreId ?? priceData.bestSingleStore.storeId}
+              onSelectStore={setSelectedStoreId}
+            />
+
+            <View style={styles.modeRow}>
+              <TouchableOpacity
+                style={[styles.modeChip, priceMode === 'single' && styles.modeChipSelected]}
+                onPress={() => setPriceMode('single')}
+              >
+                <Text style={[styles.modeText, priceMode === 'single' && styles.modeTextSelected]}>
+                  Best single store
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modeChip,
+                  priceMode === 'split' && styles.modeChipSelected,
+                  !priceData.bestSplitOption && styles.modeChipDisabled,
+                ]}
+                disabled={!priceData.bestSplitOption}
+                onPress={() => setPriceMode('split')}
+              >
+                <Text style={[styles.modeText, priceMode === 'split' && styles.modeTextSelected]}>
+                  2-store split
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {priceMode === 'single' && selectedStore ? (
+              <View style={styles.pricePanel}>
+                {selectedStore.items.map((item) => (
+                  <View key={`${selectedStore.storeId}-${item.ingredient}`} style={styles.priceRow}>
+                    <Text style={styles.priceIngredient}>{item.ingredient}</Text>
+                    <Text style={styles.priceValue}>
+                      {item.available ? `$${item.price.toFixed(2)}` : 'Fallback needed'}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+
+            {priceMode === 'split' && priceData.bestSplitOption ? (
+              <View style={styles.splitStack}>
+                {priceData.bestSplitOption.stores.map((store) => (
+                  <View key={store.storeId} style={styles.splitCard}>
+                    <Text style={styles.splitStore}>{store.storeName}</Text>
+                    <Text style={styles.splitSubtotal}>${store.subtotal.toFixed(2)} subtotal</Text>
+                    {store.assignedItems.map((item) => (
+                      <Text key={`${store.storeId}-${item}`} style={styles.splitItem}>
+                        {item}
+                      </Text>
+                    ))}
+                  </View>
+                ))}
+              </View>
+            ) : null}
+
+            {plan ? (
+              <TouchableOpacity
+                style={styles.shoppingListBtn}
+                onPress={() => router.push(`/shopping-list/${plan.id}`)}
+              >
+                <Text style={styles.shoppingListBtnText}>Get shopping list</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        ) : null}
       </View>
 
       {/* Instructions */}
@@ -136,6 +298,49 @@ const styles = StyleSheet.create({
   ingredientRow: { flexDirection: 'row', gap: 8, marginBottom: 4 },
   ingredientDot: { color: '#22c55e', fontSize: 16 },
   ingredientText: { fontSize: 14, color: '#333', flex: 1 },
+  pricingStack: { gap: 14 },
+  errorText: { fontSize: 13, color: '#dc2626' },
+  modeRow: { flexDirection: 'row', gap: 10 },
+  modeChip: {
+    borderRadius: 999,
+    backgroundColor: '#f3f4f6',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  modeChipSelected: {
+    backgroundColor: '#dcfce7',
+  },
+  modeChipDisabled: {
+    opacity: 0.5,
+  },
+  modeText: { fontSize: 13, fontWeight: '600', color: '#4b5563' },
+  modeTextSelected: { color: '#166534' },
+  pricePanel: {
+    borderRadius: 16,
+    backgroundColor: '#f9fafb',
+    padding: 16,
+    gap: 10,
+  },
+  priceRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
+  priceIngredient: { fontSize: 14, color: '#111827', flex: 1 },
+  priceValue: { fontSize: 14, fontWeight: '600', color: '#111827' },
+  splitStack: { gap: 12 },
+  splitCard: {
+    borderRadius: 16,
+    backgroundColor: '#f9fafb',
+    padding: 16,
+    gap: 6,
+  },
+  splitStore: { fontSize: 16, fontWeight: '700', color: '#111827' },
+  splitSubtotal: { fontSize: 14, color: '#22c55e', fontWeight: '600' },
+  splitItem: { fontSize: 13, color: '#4b5563' },
+  shoppingListBtn: {
+    backgroundColor: '#111827',
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  shoppingListBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
   stepRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
   stepNumber: {
     width: 24,

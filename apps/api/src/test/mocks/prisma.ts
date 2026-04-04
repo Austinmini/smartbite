@@ -25,6 +25,7 @@ jest.mock('../../lib/prisma', () => ({
     mealPlan: {
       create: jest.fn(),
       findFirst: jest.fn(),
+      findUnique: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
       update: jest.fn(),
@@ -37,6 +38,7 @@ jest.mock('../../lib/prisma', () => ({
     },
     recipe: {
       create: jest.fn(),
+      findUnique: jest.fn(),
       update: jest.fn(),
     },
     $transaction: jest.fn(),

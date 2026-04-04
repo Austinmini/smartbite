@@ -106,9 +106,9 @@ cp apps/api/.env.example apps/api/.env
 ### Sprint 3 — Grocery pricing
 > "I know exactly where to shop and what it costs"
 
-- [ ] MealMe + Kroger API clients
-- [ ] Price scan with best single store + 2-store split optimizer
-- [ ] Shopping list screen
+- [x] MealMe + Kroger API clients
+- [x] Price scan with best single store + 2-store split optimizer
+- [x] Shopping list screen
 
 ---
 
