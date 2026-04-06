@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
-import { useLocalSearchParams } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { apiClient } from '../../lib/apiClient'
 import { useAuthStore } from '../../stores/authStore'
 import { useShoppingListStore } from '../../stores/shoppingListStore'
@@ -46,6 +46,7 @@ interface ConfirmSheet {
 
 export default function ShoppingListScreen() {
   const { planId } = useLocalSearchParams<{ planId: string }>()
+  const router = useRouter()
   const token = useAuthStore((state) => state.token)
   const { toggleItem, isChecked, getCheckedCount } = useShoppingListStore()
 
@@ -166,7 +167,19 @@ export default function ShoppingListScreen() {
 
         {data.stores.map((store) => (
           <View key={store.storeName} style={styles.group}>
-            <Text style={styles.groupTitle}>{store.storeName}</Text>
+            <View style={styles.groupHeader}>
+              <Text style={styles.groupTitle}>{store.storeName}</Text>
+              <TouchableOpacity
+                style={styles.scanBtn}
+                onPress={() => router.push({
+                  pathname: '/scanner',
+                  params: { storeName: store.storeName, planId: data.planId },
+                })}
+                testID={`scan-btn-${store.storeName}`}
+              >
+                <Text style={styles.scanBtnText}>📷 Scan</Text>
+              </TouchableOpacity>
+            </View>
             {store.items.map((item) => {
               const checked = isChecked(data.planId, item.key)
               return (
@@ -272,7 +285,13 @@ const styles = StyleSheet.create({
   },
   progressFill: { height: '100%', backgroundColor: '#22c55e' },
   group: { marginTop: 24, borderRadius: 18, backgroundColor: '#f9fafb', padding: 18 },
-  groupTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 10 },
+  groupHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  groupTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
+  scanBtn: {
+    backgroundColor: '#dcfce7', borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 6, minHeight: 32,
+  },
+  scanBtnText: { fontSize: 13, fontWeight: '600', color: '#16a34a' },
   itemRow: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 12,
     paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e5e7eb',
