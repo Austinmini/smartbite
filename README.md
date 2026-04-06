@@ -145,24 +145,30 @@ cp apps/api/.env.example apps/api/.env
 
 ---
 
-### Sprint 4 — Scanner + Community Pricing + Pantry + Purchase History
+### Sprint 4 — Scanner + Community Pricing + Pantry + Purchase History ✅
 > "I scan items, build the community price database, manage my pantry, and the app remembers what I buy"
 
-- [ ] `GET /products/lookup/:upc` — Open Food Facts → USDA → Item cache
-- [ ] `POST /prices/observation` — write scan, trigger canonical recompute; rate limited 50/day
-- [ ] `processScanReward` — Bites logic (base, pioneer, stale, streak)
-- [ ] Canonical price recompute job (BullMQ) — weighted median, cluster detection, outlier quarantine
-- [ ] `POST /purchases`, `GET /purchases?ingredientName=`
-- [ ] Shopping list updated — `lastPurchase` per ingredient
-- [ ] Pantry CRUD — `GET/POST/PUT/DELETE /pantry`, `POST /pantry/sync-purchase`, `GET /pantry/check`
-- [ ] `POST /recipes/:id/cooked` — deduct pantry, write ledger, increment timesCooked
-- [ ] `GET /rewards/balance`, `/rewards/ledger`, `/rewards/leaderboard`, `/rewards/badges`
-- [ ] `GET /community/impact` — city-level aggregate stats
-- [ ] Scanner screen (Vision Camera + ML Kit barcode)
-- [ ] Product confirm screen, celebration screen (confetti + Bites)
-- [ ] Shopping list check-off flow with quantity capture
-- [ ] Pantry tab — `PantryList`, `PantryItemEditor`, `CookConfirmSheet`
-- [ ] Rewards tab (5th nav item) — balance, streak, badges, leaderboard
+**Backend** — 161 tests passing
+- [x] `GET /products/lookup/:upc` — Open Food Facts → USDA → Item cache
+- [x] `POST /prices/observation` — write scan, trigger canonical recompute; rate limited 50/day
+- [x] `processScanReward` — Bites logic (base, pioneer, stale, streak)
+- [x] `POST /purchases`, `GET /purchases?ingredientName=`
+- [x] Shopping list updated — `lastPurchase` per ingredient
+- [x] Pantry CRUD — `GET/POST/PUT/DELETE /pantry`, `POST /pantry/sync-purchase`, `GET /pantry/check`
+- [x] `PantryItem` + `PantryLedger` + `PantryAction` schema + migration
+- [x] `POST /recipes/:id/cooked` — deduct pantry, write RECIPE_COOKED ledger, increment timesCooked
+- [x] `GET /rewards/balance`, `/rewards/ledger`, `/rewards/leaderboard`, `/rewards/badges`
+- [ ] `GET /community/impact` — deferred (city-level aggregate stats, Redis hourly cache)
+- [ ] Canonical price recompute BullMQ job — deferred (cluster detection, outlier quarantine, corroboration)
+
+**Mobile**
+- [x] Shopping list check-off: confirmation sheet → `POST /purchases` + `POST /pantry/sync-purchase` → check off; "Last bought" badge per ingredient
+- [x] Shopping list: 📷 Scan button per store group launches barcode scanner
+- [x] Pantry tab — list with qty chips, add/edit Modal, delete with confirm, pull-to-refresh
+- [x] Recipe detail: "Mark as Cooked" → servings picker → `POST /recipes/:id/cooked` → deduction summary card
+- [x] Rewards tab — balance card, badge grid (earned/locked), leaderboard, recent activity ledger
+- [x] Scanner screens (`scanner/index`, `scanner/confirm`, `scanner/success`) — `expo-camera` barcode scan → product lookup → price/qty entry → `POST /prices/observation` → Bites celebration
+- [x] Tab bar: 6 tabs — Home, Explore, Pantry, Saved, Rewards, Profile
 
 ---
 
