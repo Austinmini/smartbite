@@ -1,3 +1,4 @@
+import React from 'react'
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Modal, TextInput } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMealPlanStore } from '../../stores/mealPlanStore'
@@ -168,6 +169,7 @@ export default function RecipeDetailScreen() {
   const hasAnyPrices = priceData?.hasAnyPrices ?? false
 
   return (
+    <>
     <ScrollView style={styles.container} testID="recipe-detail-screen">
       {/* Header */}
       <View style={styles.hero}>
@@ -398,11 +400,9 @@ export default function RecipeDetailScreen() {
         </View>
       </View>
     </Modal>
+    </>
   )
 }
-
-// React import needed for useState
-import React from 'react'
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
