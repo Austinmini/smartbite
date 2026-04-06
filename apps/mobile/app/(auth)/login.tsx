@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native'
 import { Link, useRouter } from 'expo-router'
 import { apiClient } from '@/lib/apiClient'
+import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
 import { useProfileStore } from '@/stores/profileStore'
 
@@ -20,10 +21,12 @@ export default function LoginScreen() {
     }
     setLoading(true)
     try {
-      const res = await apiClient.post<{ access_token: string; user: { id: string; email: string; tier: 'FREE' | 'PLUS' | 'PRO' } }>(
+      const res = await apiClient.post<{ access_token: string; refresh_token: string; user: { id: string; email: string; tier: 'FREE' | 'PLUS' | 'PRO' } }>(
         '/auth/login',
         { email, password }
       )
+      // Hand the session to the Supabase client so it manages token refresh automatically
+      await supabase.auth.setSession({ access_token: res.access_token, refresh_token: res.refresh_token })
       setUser(res.user, res.access_token)
       router.replace(onboardingComplete ? '/(tabs)' : '/(auth)/onboarding/location')
     } catch (err: any) {

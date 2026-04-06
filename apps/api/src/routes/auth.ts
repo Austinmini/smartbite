@@ -40,6 +40,7 @@ export async function authRoute(app: FastifyInstance) {
 
       return reply.status(201).send({
         access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
         user: { id: user.id, email: user.email, tier: user.tier },
       })
     }
@@ -63,6 +64,7 @@ export async function authRoute(app: FastifyInstance) {
 
       return reply.status(200).send({
         access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
         user: { id: data.user.id, email: data.user.email, tier: user?.tier ?? 'FREE' },
       })
     }

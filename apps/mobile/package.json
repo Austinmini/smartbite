@@ -17,6 +17,7 @@
     "@react-native-community/netinfo": "11.4.1",
     "@react-navigation/native": "^7.1.8",
     "@smartbite/shared": "workspace:*",
+    "@supabase/supabase-js": "^2.101.1",
     "expo": "~54.0.33",
     "expo-constants": "~18.0.13",
     "expo-font": "~14.0.11",

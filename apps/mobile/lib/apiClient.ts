@@ -1,10 +1,20 @@
+import { supabase } from './supabase'
+
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'
+
+async function getToken(): Promise<string | undefined> {
+  const { data } = await supabase.auth.getSession()
+  return data.session?.access_token
+}
 
 async function request<T>(
   path: string,
   options: RequestInit & { token?: string } = {}
 ): Promise<T> {
-  const { token, ...rest } = options
+  // Always fetch the current session token — Supabase auto-refreshes it
+  const { token: overrideToken, ...rest } = options
+  const token = overrideToken ?? (await getToken())
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(rest.headers as Record<string, string>),

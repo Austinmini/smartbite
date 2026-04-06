@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native'
 import { Link, useRouter } from 'expo-router'
 import { apiClient } from '@/lib/apiClient'
+import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
 
 export default function SignupScreen() {
@@ -22,10 +23,12 @@ export default function SignupScreen() {
     }
     setLoading(true)
     try {
-      const res = await apiClient.post<{ access_token: string; user: { id: string; email: string; tier: 'FREE' | 'PLUS' | 'PRO' } }>(
+      const res = await apiClient.post<{ access_token: string; refresh_token: string; user: { id: string; email: string; tier: 'FREE' | 'PLUS' | 'PRO' } }>(
         '/auth/signup',
         { email, password }
       )
+      // Hand the session to the Supabase client so it manages token refresh automatically
+      await supabase.auth.setSession({ access_token: res.access_token, refresh_token: res.refresh_token })
       setUser(res.user, res.access_token)
       router.replace('/(auth)/onboarding/location')
     } catch (err: any) {

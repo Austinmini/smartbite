@@ -4,6 +4,7 @@ import { Stack, useRouter, useSegments } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { useEffect } from 'react'
 import { useColorScheme } from '@/components/useColorScheme'
+import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
 import { useProfileStore } from '@/stores/profileStore'
 // react-native-reanimated bare import omitted — causes import.meta error on web (Reanimated v4)
@@ -51,6 +52,17 @@ function RootLayoutNav() {
       useAuthStore.getState().setHasHydrated(true)
     }
     return unsub
+  }, [])
+
+  // Keep auth store in sync with Supabase session (handles token refresh + sign-out)
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        useAuthStore.getState().clearUser()
+      }
+      // Token is refreshed silently — no action needed; apiClient always calls getSession()
+    })
+    return () => subscription.unsubscribe()
   }, [])
 
   useEffect(() => {
