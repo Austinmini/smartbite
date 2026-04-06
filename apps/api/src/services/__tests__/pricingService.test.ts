@@ -368,6 +368,7 @@ describe('buildShoppingList', () => {
       ],
       maxStores: 2,
     })
+    prismaMock.purchaseHistory.findMany.mockResolvedValue([])
     mealMeMock.mockImplementation(async ({ ingredient, store }: any) => {
       const prices: Record<string, Record<string, number>> = {
         'HEB South Congress': { rice: 2.25, beans: 4.5 },
@@ -391,12 +392,81 @@ describe('buildShoppingList', () => {
     expect(result.stores).toEqual([
       {
         storeName: 'HEB South Congress',
-        items: [{ key: 'rice|bag|HEB South Congress', ingredient: 'rice', amount: 1, unit: 'bag', checked: false }],
+        items: [{ key: 'rice|bag|HEB South Congress', ingredient: 'rice', amount: 1, unit: 'bag', checked: false, lastPurchase: null }],
       },
       {
         storeName: 'Walmart Supercenter',
-        items: [{ key: 'beans|can|Walmart Supercenter', ingredient: 'beans', amount: 2, unit: 'can', checked: false }],
+        items: [{ key: 'beans|can|Walmart Supercenter', ingredient: 'beans', amount: 2, unit: 'can', checked: false, lastPurchase: null }],
       },
     ])
+  })
+
+  it('includes lastPurchase for ingredients with purchase history', async () => {
+    prismaMock.mealPlan.findFirst.mockResolvedValue({
+      id: 'plan-2',
+      userId: 'user-1',
+      meals: [
+        {
+          id: 'meal-3',
+          bestStore: 'HEB',
+          recipe: {
+            ingredients: [{ name: 'eggs', amount: 12, unit: 'each' }],
+          },
+        },
+      ],
+    })
+    prismaMock.userProfile.findUnique.mockResolvedValue({
+      userId: 'user-1',
+      preferredRetailers: ['heb'],
+      selectedStores: [],
+      maxStores: 1,
+    })
+    prismaMock.purchaseHistory.findMany.mockResolvedValue([
+      {
+        id: 'ph-1',
+        itemName: 'eggs',
+        quantity: 12,
+        unit: 'each',
+        pricePerUnit: 0.25,
+        totalPrice: 2.99,
+        storeName: 'HEB',
+        purchasedAt: new Date('2026-04-01'),
+      },
+    ])
+
+    const result = await buildShoppingList('user-1', 'plan-2')
+
+    expect(result.stores[0].items[0].lastPurchase).toMatchObject({
+      quantity: 12,
+      unit: 'each',
+      storeName: 'HEB',
+    })
+  })
+
+  it('returns null lastPurchase for ingredients never bought', async () => {
+    prismaMock.mealPlan.findFirst.mockResolvedValue({
+      id: 'plan-3',
+      userId: 'user-1',
+      meals: [
+        {
+          id: 'meal-4',
+          bestStore: 'HEB',
+          recipe: {
+            ingredients: [{ name: 'truffle oil', amount: 1, unit: 'tbsp' }],
+          },
+        },
+      ],
+    })
+    prismaMock.userProfile.findUnique.mockResolvedValue({
+      userId: 'user-1',
+      preferredRetailers: ['heb'],
+      selectedStores: [],
+      maxStores: 1,
+    })
+    prismaMock.purchaseHistory.findMany.mockResolvedValue([])
+
+    const result = await buildShoppingList('user-1', 'plan-3')
+
+    expect(result.stores[0].items[0].lastPurchase).toBeNull()
   })
 })

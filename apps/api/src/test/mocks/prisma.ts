@@ -72,6 +72,10 @@ jest.mock('../../lib/prisma', () => ({
       findUnique: jest.fn(),
       upsert: jest.fn(),
     },
+    purchaseHistory: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+    },
     $transaction: jest.fn(),
     $disconnect: jest.fn(),
   },

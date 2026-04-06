@@ -33,6 +33,9 @@ model User {
   // Scanner / crowdsourced pricing
   priceObservations PriceObservation[]
 
+  // Purchase history
+  purchaseHistory  PurchaseHistory[]
+
   // Rewards
   bitesBalance     BitesBalance?
   bitesLedger      BitesLedger[]
@@ -397,4 +400,35 @@ enum PromoType {
   PLUS_TRIAL
   BITES_BONUS
   REFERRAL_MULTIPLIER
+}
+
+enum ItemCategory {
+  GROCERY
+  FUEL
+  HOME_IMPROVEMENT
+  HOUSEHOLD
+  PERSONAL_CARE
+  PET_SUPPLIES
+  OTHER
+}
+
+// ── Purchase history ──────────────────────────────────────────────────────────
+model PurchaseHistory {
+  id           String       @id @default(cuid())
+  userId       String
+  user         User         @relation(fields: [userId], references: [id])
+  itemName     String
+  itemCategory ItemCategory @default(GROCERY)
+  upc          String?
+  quantity     Float
+  unit         String
+  pricePerUnit Float
+  totalPrice   Float
+  storeName    String
+  storeId      String?
+  planId       String?
+  purchasedAt  DateTime     @default(now())
+
+  @@index([userId, itemName])
+  @@index([userId, purchasedAt])
 }

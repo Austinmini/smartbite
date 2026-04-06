@@ -372,9 +372,35 @@ export async function buildShoppingList(userId: string, planId: string) {
     })
   )
 
+  // Collect all unique ingredient names across all meals
+  const allIngredientNames = new Set<string>()
+  for (const meal of mealsWithAssignedStores) {
+    for (const ing of normalizeIngredients(meal.recipe.ingredients)) {
+      allIngredientNames.add(ing.name.toLowerCase())
+    }
+  }
+
+  // Fetch most recent purchase for each ingredient in one query
+  const purchaseHistoryRows = await prisma.purchaseHistory.findMany({
+    where: {
+      userId,
+      itemName: { in: [...allIngredientNames] },
+    },
+    orderBy: { purchasedAt: 'desc' },
+  })
+
+  // Build a map: lowercase ingredient name → most recent purchase
+  const lastPurchaseMap = new Map<string, typeof purchaseHistoryRows[0]>()
+  for (const row of purchaseHistoryRows) {
+    const key = row.itemName.toLowerCase()
+    if (!lastPurchaseMap.has(key)) {
+      lastPurchaseMap.set(key, row)
+    }
+  }
+
   const grouped = new Map<
     string,
-    Map<string, { key: string; ingredient: string; amount: number; unit: string; checked: false }>
+    Map<string, { key: string; ingredient: string; amount: number; unit: string; checked: false; lastPurchase: object | null }>
   >()
 
   for (const meal of mealsWithAssignedStores) {
@@ -387,6 +413,7 @@ export async function buildShoppingList(userId: string, planId: string) {
       const key = `${ingredient.name.toLowerCase()}|${ingredient.unit}|${storeName}`
       const storeItems = grouped.get(storeName)!
       const current = storeItems.get(key)
+      const lastPurchase = lastPurchaseMap.get(ingredient.name.toLowerCase()) ?? null
 
       storeItems.set(key, {
         key,
@@ -394,6 +421,7 @@ export async function buildShoppingList(userId: string, planId: string) {
         amount: roundCurrency((current?.amount ?? 0) + ingredient.amount),
         unit: ingredient.unit,
         checked: false,
+        lastPurchase,
       })
     }
   }
