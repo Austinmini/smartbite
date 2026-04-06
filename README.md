@@ -56,6 +56,21 @@ New users get a free 7-day Pro trial on signup.
 
 ---
 
+## Scalability notes
+
+The architecture is stateless and scales horizontally. Four targeted fixes before 10k users:
+
+| Fix | When | Action |
+|---|---|---|
+| PgBouncer connection pooling | Now | Enable in Supabase dashboard, append `?pgbouncer=true&connection_limit=1` to `DATABASE_URL` |
+| Event-driven canonical price recompute | Sprint 5 | Enqueue BullMQ job per observation — never full-table cron scan |
+| PriceObservation archival | Sprint 5 | Move rows older than 90 days to archive table monthly |
+| Async plan generation | Sprint 7 | Queue Claude job, return immediately, mobile polls `GET /plans/current` |
+
+Everything else (Redis, rate limiting, tier enforcement, Prisma query safety) handles 10k+ without changes.
+
+---
+
 ## Project structure
 
 ```
@@ -212,6 +227,24 @@ cp apps/api/.env.example apps/api/.env
 - [ ] RevenueCat SDK + introductory offer (7-day free trial on Pro SKU)
 - [ ] Trial banner "Pro Trial · X days left", paywall screen, restore purchases
 - [ ] `TierGatePrompt` — contextual upgrade prompts with post-trial framing
+
+---
+
+### Announcements (cross-cutting feature, target Sprint 5)
+> "Broadcast banners and modals to users without an app update"
+
+Admin inserts rows directly into DB (no admin UI in V1). Mobile fetches on home screen mount and renders dismissible banners or one-per-session modals.
+
+**Backend**
+- [ ] `Announcement` model — title, body, type (BANNER|MODAL), style (INFO|SUCCESS|WARNING|PROMO), targetTiers, ctaText, ctaDeepLink, startsAt, endsAt
+- [ ] `GET /announcements` — active + non-expired, filtered by user tier, Redis-cached 5min
+
+**Mobile**
+- [ ] `AnnouncementBanner` component — coloured strip, dismiss (persisted to AsyncStorage by announcement ID)
+- [ ] Home screen: fetch + render banners below header
+- [ ] MODAL type: shown once per cold-start session
+
+**Use cases:** outage notices, feature launches, maintenance windows, tier-targeted promos ("Try Pro free")
 
 ---
 
