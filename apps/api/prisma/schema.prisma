@@ -36,6 +36,9 @@ model User {
   // Purchase history
   purchaseHistory  PurchaseHistory[]
 
+  // Pantry
+  pantryItems      PantryItem[]
+
   // Rewards
   bitesBalance     BitesBalance?
   bitesLedger      BitesLedger[]
@@ -431,4 +434,48 @@ model PurchaseHistory {
 
   @@index([userId, itemName])
   @@index([userId, purchasedAt])
+}
+
+enum PantryAction {
+  MANUAL_ADD
+  MANUAL_REMOVE
+  PURCHASE
+  RECIPE_COOKED
+  EXPIRED
+  ADJUSTMENT
+}
+
+// ── Pantry ────────────────────────────────────────────────────────────────────
+model PantryItem {
+  id              String       @id @default(cuid())
+  userId          String
+  user            User         @relation(fields: [userId], references: [id])
+  itemName        String
+  itemCategory    ItemCategory @default(GROCERY)
+  quantity        Float
+  unit            String
+  notes           String?
+  lastRestockedAt DateTime?
+  updatedAt       DateTime     @updatedAt
+
+  ledger          PantryLedger[]
+
+  @@unique([userId, itemName])
+  @@index([userId])
+  @@index([userId, itemCategory])
+}
+
+model PantryLedger {
+  id           String       @id @default(cuid())
+  userId       String
+  pantryItemId String
+  pantryItem   PantryItem   @relation(fields: [pantryItemId], references: [id])
+  delta        Float
+  unit         String
+  action       PantryAction
+  referenceId  String?
+  note         String?
+  createdAt    DateTime     @default(now())
+
+  @@index([pantryItemId, createdAt])
 }
