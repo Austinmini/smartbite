@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native'
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Modal, TextInput } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMealPlanStore } from '../../stores/mealPlanStore'
 import { useAuthStore } from '../../stores/authStore'
@@ -47,6 +47,16 @@ export default function RecipeDetailScreen() {
   const token = useAuthStore((s) => s.token)
   const [regenerating, setRegenerating] = React.useState(false)
   const [priceData, setPriceData] = React.useState<PriceScanResponse | null>(null)
+
+  // Mark as Cooked
+  const [cookSheet, setCookSheet] = React.useState(false)
+  const [cookServings, setCookServings] = React.useState('')
+  const [cooking, setCooking] = React.useState(false)
+  const [cookResult, setCookResult] = React.useState<{
+    deductions: { ingredientName: string; deducted: number; unit: string; remaining: number }[]
+    missingFromPantry: string[]
+    timesCooked: number
+  } | null>(null)
   const [priceMode, setPriceMode] = React.useState<'single' | 'split'>('single')
   const [selectedStoreId, setSelectedStoreId] = React.useState<string | null>(null)
   const [priceLoading, setPriceLoading] = React.useState(false)
@@ -116,6 +126,32 @@ export default function RecipeDetailScreen() {
       Alert.alert('Error', 'Could not regenerate this meal. Please try again.')
     } finally {
       setRegenerating(false)
+    }
+  }
+
+  async function handleMarkAsCooked() {
+    if (!meal) return
+    const servings = parseFloat(cookServings)
+    if (!servings || servings <= 0) {
+      Alert.alert('Invalid servings', 'Please enter a valid number of servings.')
+      return
+    }
+    setCooking(true)
+    try {
+      const result = await apiClient.post<{
+        deductions: { ingredientName: string; deducted: number; unit: string; remaining: number }[]
+        missingFromPantry: string[]
+        timesCooked: number
+      }>(`/recipes/${meal.recipe.id}/cooked`, {
+        servings,
+        planMealId: meal.id,
+      })
+      setCookSheet(false)
+      setCookResult(result)
+    } catch (err: any) {
+      Alert.alert('Could not record', err.message ?? 'Please try again.')
+    } finally {
+      setCooking(false)
     }
   }
 
@@ -273,6 +309,44 @@ export default function RecipeDetailScreen() {
         ))}
       </View>
 
+      {/* Mark as Cooked */}
+      <View style={styles.section}>
+        <TouchableOpacity
+          style={styles.cookBtn}
+          testID="mark-as-cooked-btn"
+          onPress={() => { setCookServings(String(meal.recipe.servings)); setCookSheet(true) }}
+        >
+          <Text style={styles.cookBtnText}>✓  Mark as cooked</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Cook result summary */}
+      {cookResult && (
+        <View style={styles.section}>
+          <View style={styles.cookResultCard}>
+            <Text style={styles.cookResultTitle}>Cooked! Pantry updated</Text>
+            {cookResult.timesCooked > 0 && (
+              <Text style={styles.cookResultMeta}>
+                You've cooked this {cookResult.timesCooked}× total
+              </Text>
+            )}
+            {cookResult.deductions.map((d) => (
+              <Text key={d.ingredientName} style={styles.cookResultRow}>
+                − {d.deducted} {d.unit} {d.ingredientName} → {d.remaining} {d.unit} remaining
+              </Text>
+            ))}
+            {cookResult.missingFromPantry.length > 0 && (
+              <Text style={styles.cookResultMissing}>
+                Not in pantry: {cookResult.missingFromPantry.join(', ')}
+              </Text>
+            )}
+            <TouchableOpacity onPress={() => setCookResult(null)}>
+              <Text style={styles.cookResultDismiss}>Dismiss</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* Regenerate */}
       <View style={styles.section}>
         {regenerating ? (
@@ -292,6 +366,38 @@ export default function RecipeDetailScreen() {
         Nutritional information is approximate. Consult a healthcare provider for dietary advice.
       </Text>
     </ScrollView>
+
+    {/* Servings picker sheet */}
+    <Modal visible={cookSheet} animationType="slide" transparent onRequestClose={() => setCookSheet(false)}>
+      <View style={styles.sheetOverlay}>
+        <View style={styles.sheet}>
+          <Text style={styles.sheetTitle}>How many servings did you make?</Text>
+          <Text style={styles.sheetSubtitle}>Recipe makes {meal.recipe.servings} servings</Text>
+          <TextInput
+            style={styles.input}
+            value={cookServings}
+            onChangeText={setCookServings}
+            keyboardType="decimal-pad"
+            placeholder={String(meal.recipe.servings)}
+            testID="cook-servings-input"
+          />
+          <TouchableOpacity
+            style={[styles.confirmBtn, cooking && styles.confirmBtnDisabled]}
+            onPress={handleMarkAsCooked}
+            disabled={cooking}
+            testID="confirm-cook-btn"
+          >
+            {cooking
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={styles.confirmBtnText}>Confirm</Text>
+            }
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.cancelBtn} onPress={() => setCookSheet(false)}>
+            <Text style={styles.cancelBtnText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
   )
 }
 
@@ -379,6 +485,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   stepText: { fontSize: 14, color: '#333', flex: 1, lineHeight: 20 },
+  cookBtn: {
+    backgroundColor: '#16a34a',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    minHeight: 44,
+  },
+  cookBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  cookResultCard: {
+    backgroundColor: '#f0fdf4', borderRadius: 12, padding: 16,
+    borderWidth: 1, borderColor: '#bbf7d0', gap: 6,
+  },
+  cookResultTitle: { fontSize: 15, fontWeight: '700', color: '#15803d' },
+  cookResultMeta: { fontSize: 13, color: '#16a34a' },
+  cookResultRow: { fontSize: 13, color: '#374151' },
+  cookResultMissing: { fontSize: 13, color: '#9ca3af', fontStyle: 'italic', marginTop: 4 },
+  cookResultDismiss: { fontSize: 13, color: '#6b7280', marginTop: 8, textAlign: 'right' },
   regenerateBtn: {
     borderWidth: 1,
     borderColor: '#22c55e',
@@ -388,6 +511,27 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   regenerateBtnText: { color: '#22c55e', fontSize: 14, fontWeight: '600' },
+  // Sheet (shared with cook modal)
+  sheetOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
+  sheet: {
+    backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 24, paddingBottom: 40,
+  },
+  sheetTitle: { fontSize: 20, fontWeight: '700', color: '#111827', marginBottom: 6 },
+  sheetSubtitle: { fontSize: 14, color: '#6b7280', marginBottom: 20 },
+  input: {
+    borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10,
+    paddingHorizontal: 14, paddingVertical: 10, fontSize: 16,
+    color: '#111827', marginBottom: 16,
+  },
+  confirmBtn: {
+    backgroundColor: '#22c55e', borderRadius: 12,
+    paddingVertical: 14, alignItems: 'center', minHeight: 44,
+  },
+  confirmBtnDisabled: { opacity: 0.6 },
+  confirmBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  cancelBtn: { alignItems: 'center', paddingVertical: 14, minHeight: 44 },
+  cancelBtnText: { color: '#6b7280', fontSize: 14 },
   disclaimer: {
     fontSize: 11,
     color: '#9ca3af',
