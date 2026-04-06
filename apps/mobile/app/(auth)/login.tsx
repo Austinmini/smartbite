@@ -27,7 +27,7 @@ export default function LoginScreen() {
       )
       // Hand the session to the Supabase client so it manages token refresh automatically
       await supabase.auth.setSession({ access_token: res.access_token, refresh_token: res.refresh_token })
-      setUser(res.user, res.access_token)
+      setUser(res.user, res.access_token, res.refresh_token)
       router.replace(onboardingComplete ? '/(tabs)' : '/(auth)/onboarding/location')
     } catch (err: any) {
       Alert.alert('Sign in failed', err.message ?? 'Invalid email or password')

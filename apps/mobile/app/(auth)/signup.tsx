@@ -29,7 +29,7 @@ export default function SignupScreen() {
       )
       // Hand the session to the Supabase client so it manages token refresh automatically
       await supabase.auth.setSession({ access_token: res.access_token, refresh_token: res.refresh_token })
-      setUser(res.user, res.access_token)
+      setUser(res.user, res.access_token, res.refresh_token)
       router.replace('/(auth)/onboarding/location')
     } catch (err: any) {
       const msg = err.status === 409 ? 'An account with this email already exists' : (err.message ?? 'Sign up failed')

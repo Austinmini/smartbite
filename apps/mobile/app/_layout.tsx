@@ -54,6 +54,20 @@ function RootLayoutNav() {
     return unsub
   }, [])
 
+  // On cold start: restore the Supabase session from stored tokens so auto-refresh works.
+  // Supabase uses in-memory storage (lib/supabase.ts) — it forgets the session on restart.
+  // We persist access_token + refresh_token in Zustand/AsyncStorage and hand them back here.
+  useEffect(() => {
+    const { token, refreshToken } = useAuthStore.getState()
+    if (token && refreshToken) {
+      supabase.auth.setSession({ access_token: token, refresh_token: refreshToken })
+        .catch(() => {
+          // Tokens are stale and can't be refreshed — force re-login
+          useAuthStore.getState().clearUser()
+        })
+    }
+  }, [])
+
   // Keep auth store in sync with Supabase session (handles token refresh + sign-out)
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
