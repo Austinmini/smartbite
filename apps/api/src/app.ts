@@ -10,6 +10,7 @@ import { pricesRoute } from './routes/prices'
 import { productsRoute } from './routes/products'
 import { purchasesRoute } from './routes/purchases'
 import { pantryRoute } from './routes/pantry'
+import { recipesRoute } from './routes/recipes'
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -36,6 +37,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(productsRoute, { prefix: '/products' })
   await app.register(purchasesRoute, { prefix: '/purchases' })
   await app.register(pantryRoute, { prefix: '/pantry' })
+  await app.register(recipesRoute, { prefix: '/recipes' })
 
   return app
 }

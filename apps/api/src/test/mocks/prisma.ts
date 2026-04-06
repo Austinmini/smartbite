@@ -86,6 +86,10 @@ jest.mock('../../lib/prisma', () => ({
     pantryLedger: {
       create: jest.fn(),
     },
+    favourite: {
+      findUnique: jest.fn(),
+      update: jest.fn(),
+    },
     $transaction: jest.fn(),
     $disconnect: jest.fn(),
   },
