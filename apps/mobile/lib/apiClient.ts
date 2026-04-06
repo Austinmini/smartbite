@@ -1,10 +1,15 @@
 import { supabase } from './supabase'
+import { useAuthStore } from '../stores/authStore'
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'
 
 async function getToken(): Promise<string | undefined> {
   const { data } = await supabase.auth.getSession()
-  return data.session?.access_token
+  if (data.session?.access_token) return data.session.access_token
+  // Fall back to the persisted token from authStore.
+  // Supabase uses in-memory storage and may not have the session yet during
+  // cold-start (setSession() in _layout.tsx is async and hasn't resolved).
+  return useAuthStore.getState().token ?? undefined
 }
 
 async function request<T>(
