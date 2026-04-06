@@ -17,6 +17,7 @@ jest.mock('../../lib/prisma', () => ({
       findUnique: jest.fn(),
       update: jest.fn(),
       upsert: jest.fn(),
+      findMany: jest.fn(),
     },
     referralCode: {
       create: jest.fn(),
@@ -59,10 +60,14 @@ jest.mock('../../lib/prisma', () => ({
     },
     bitesLedger: {
       create: jest.fn(),
+      findMany: jest.fn(),
+      count: jest.fn(),
     },
     bitesBalance: {
       findUnique: jest.fn(),
       upsert: jest.fn(),
+      update: jest.fn(),
+      findMany: jest.fn(),
     },
     userBadge: {
       findMany: jest.fn(),
