@@ -41,6 +41,37 @@ jest.mock('../../lib/prisma', () => ({
       findUnique: jest.fn(),
       update: jest.fn(),
     },
+    product: {
+      findUnique: jest.fn(),
+      upsert: jest.fn(),
+    },
+    priceObservation: {
+      create: jest.fn(),
+      count: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
+    },
+    canonicalPrice: {
+      findUnique: jest.fn(),
+      upsert: jest.fn(),
+    },
+    bitesLedger: {
+      create: jest.fn(),
+    },
+    bitesBalance: {
+      findUnique: jest.fn(),
+      upsert: jest.fn(),
+    },
+    userBadge: {
+      findMany: jest.fn(),
+      createMany: jest.fn(),
+    },
+    scanStreak: {
+      findUnique: jest.fn(),
+      upsert: jest.fn(),
+    },
     $transaction: jest.fn(),
     $disconnect: jest.fn(),
   },

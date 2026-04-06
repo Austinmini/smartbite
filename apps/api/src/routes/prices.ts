@@ -8,6 +8,7 @@ import {
   persistBestStore,
   scanPrices,
 } from '../services/pricingService'
+import { processScanReward } from '../services/rewardsService'
 
 const TIER_STORE_LIMITS = {
   FREE: 1,
@@ -66,6 +67,63 @@ export async function pricesRoute(app: FastifyInstance) {
       return reply.status(200).send(result)
     }
   )
+
+  // ── POST /prices/observation ─────────────────────────────────────────────────
+
+  app.post<{
+    Body: {
+      upc?: string
+      storeId?: string
+      storeName?: string
+      storeLocation?: unknown
+      price?: number
+      unitSize?: string
+    }
+  }>(
+    '/observation',
+    {
+      preHandler: verifyJWT,
+      config: { rateLimit: { max: 50, timeWindow: '24 hours' } },
+    },
+    async (request, reply) => {
+      const userId = (request as any).userId as string
+      const { upc, storeId, storeName, storeLocation, price, unitSize } = request.body ?? {}
+
+      if (!upc || typeof upc !== 'string') {
+        return reply.status(400).send({ error: 'upc is required' })
+      }
+      if (!storeId || typeof storeId !== 'string') {
+        return reply.status(400).send({ error: 'storeId is required' })
+      }
+      if (!storeName || typeof storeName !== 'string') {
+        return reply.status(400).send({ error: 'storeName is required' })
+      }
+      if (typeof price !== 'number' || price < 0) {
+        return reply.status(400).send({ error: 'price must be a non-negative number' })
+      }
+      if (!storeLocation) {
+        return reply.status(400).send({ error: 'storeLocation is required' })
+      }
+
+      const observation = await prisma.priceObservation.create({
+        data: {
+          upc,
+          storeId,
+          storeName,
+          storeLocation: storeLocation as object,
+          price,
+          unitSize: unitSize ?? null,
+          userId,
+        },
+      })
+
+      const bites = await processScanReward(userId, observation as any)
+
+      return reply.status(201).send({ observationId: observation.id, bites })
+    }
+  )
+
+  // ── GET /prices/shopping-list/:planId ────────────────────────────────────────
 
   app.get<{ Params: { planId: string } }>(
     '/shopping-list/:planId',
