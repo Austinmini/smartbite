@@ -31,4 +31,19 @@ describe('PriceCompareBar', () => {
     fireEvent.press(getByTestId('price-compare-store-kroger'))
     expect(onSelectStore).toHaveBeenCalledWith('kroger')
   })
+
+  it('shows an unavailable label instead of a zero-dollar total when a store has no live prices', () => {
+    const { getByText, queryByText } = render(
+      <PriceCompareBar
+        storeResults={[
+          { storeId: 'heb', storeName: 'HEB', totalCost: 0, distanceMiles: 1.2, hasLivePrices: false },
+        ]}
+        selectedStoreId="heb"
+        onSelectStore={() => {}}
+      />
+    )
+
+    expect(getByText('No live prices')).toBeTruthy()
+    expect(queryByText('$0.00')).toBeNull()
+  })
 })

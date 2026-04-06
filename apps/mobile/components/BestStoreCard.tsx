@@ -7,6 +7,7 @@ interface BestStoreCardProps {
   totalCost: number
   distanceMiles: number
   savingsLabel?: string
+  totalLabel?: string
 }
 
 export function BestStoreCard({
@@ -15,13 +16,14 @@ export function BestStoreCard({
   totalCost,
   distanceMiles,
   savingsLabel,
+  totalLabel,
 }: BestStoreCardProps) {
   return (
     <View style={styles.card}>
       <Text style={styles.eyebrow}>{title}</Text>
       <Text style={styles.storeName}>{storeName}</Text>
       <View style={styles.row}>
-        <Text style={styles.total}>${totalCost.toFixed(2)} total</Text>
+        <Text style={styles.total}>{totalLabel ?? `$${totalCost.toFixed(2)} total`}</Text>
         <Text style={styles.distance}>{distanceMiles.toFixed(1)} mi away</Text>
       </View>
       {savingsLabel ? <Text style={styles.savings}>{savingsLabel}</Text> : null}

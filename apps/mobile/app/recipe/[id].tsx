@@ -34,6 +34,8 @@ interface PriceScanResponse {
   bestSplitOption: SplitOption | null
   storeResults: PriceStoreResult[]
   cached: boolean
+  hasAnyPrices: boolean
+  message?: string
 }
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'
@@ -127,6 +129,7 @@ export default function RecipeDetailScreen() {
 
   const { recipe } = meal
   const selectedStore = priceData?.storeResults.find((store) => store.storeId === selectedStoreId)
+  const hasAnyPrices = priceData?.hasAnyPrices ?? false
 
   return (
     <ScrollView style={styles.container} testID="recipe-detail-screen">
@@ -165,20 +168,31 @@ export default function RecipeDetailScreen() {
         {priceError ? <Text style={styles.errorText}>{priceError}</Text> : null}
         {priceData ? (
           <View style={styles.pricingStack}>
+            {!hasAnyPrices && priceData.message ? (
+              <View style={styles.noticeCard}>
+                <Text style={styles.noticeTitle}>Live prices are temporarily unavailable</Text>
+                <Text style={styles.noticeBody}>{priceData.message}</Text>
+              </View>
+            ) : null}
+
             <BestStoreCard
-              title="Best single store"
+              title={hasAnyPrices ? 'Best single store' : 'Closest selected store'}
               storeName={priceData.bestSingleStore.storeName}
               totalCost={priceData.bestSingleStore.totalCost}
               distanceMiles={priceData.bestSingleStore.distanceMiles}
+              totalLabel={hasAnyPrices ? undefined : 'Live prices unavailable'}
               savingsLabel={
-                priceData.bestSplitOption
+                hasAnyPrices && priceData.bestSplitOption
                   ? `Split basket saves $${priceData.bestSplitOption.savings.toFixed(2)}`
                   : undefined
               }
             />
 
             <PriceCompareBar
-              storeResults={priceData.storeResults}
+              storeResults={priceData.storeResults.map((store) => ({
+                ...store,
+                hasLivePrices: store.items.some((item) => item.available),
+              }))}
               selectedStoreId={selectedStoreId ?? priceData.bestSingleStore.storeId}
               onSelectStore={setSelectedStoreId}
             />
@@ -189,7 +203,7 @@ export default function RecipeDetailScreen() {
                 onPress={() => setPriceMode('single')}
               >
                 <Text style={[styles.modeText, priceMode === 'single' && styles.modeTextSelected]}>
-                  Best single store
+                  {hasAnyPrices ? 'Best single store' : 'Store availability'}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -212,8 +226,8 @@ export default function RecipeDetailScreen() {
                 {selectedStore.items.map((item) => (
                   <View key={`${selectedStore.storeId}-${item.ingredient}`} style={styles.priceRow}>
                     <Text style={styles.priceIngredient}>{item.ingredient}</Text>
-                    <Text style={styles.priceValue}>
-                      {item.available ? `$${item.price.toFixed(2)}` : 'Fallback needed'}
+                    <Text style={[styles.priceValue, !item.available && styles.priceValueMuted]}>
+                      {item.available ? `$${item.price.toFixed(2)}` : 'No live price at this store'}
                     </Text>
                   </View>
                 ))}
@@ -300,6 +314,16 @@ const styles = StyleSheet.create({
   ingredientText: { fontSize: 14, color: '#333', flex: 1 },
   pricingStack: { gap: 14 },
   errorText: { fontSize: 13, color: '#dc2626' },
+  noticeCard: {
+    borderRadius: 16,
+    backgroundColor: '#fffbeb',
+    borderWidth: 1,
+    borderColor: '#fde68a',
+    padding: 16,
+    gap: 6,
+  },
+  noticeTitle: { fontSize: 14, fontWeight: '700', color: '#92400e' },
+  noticeBody: { fontSize: 13, lineHeight: 19, color: '#a16207' },
   modeRow: { flexDirection: 'row', gap: 10 },
   modeChip: {
     borderRadius: 999,
@@ -324,6 +348,7 @@ const styles = StyleSheet.create({
   priceRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
   priceIngredient: { fontSize: 14, color: '#111827', flex: 1 },
   priceValue: { fontSize: 14, fontWeight: '600', color: '#111827' },
+  priceValueMuted: { color: '#6b7280', fontWeight: '500' },
   splitStack: { gap: 12 },
   splitCard: {
     borderRadius: 16,

@@ -2,7 +2,13 @@
 
 ## Project overview
 
-SmartBite is a mobile-first app that helps users eat well within their budget. It combines AI-generated meal planning with real-time grocery price scouting across the user's preferred local supermarkets. Users set a weekly food budget, dietary goals, and preferred retailers — the app generates personalised recipes, finds the cheapest prices per ingredient across their chosen stores, and learns from their favourites over time.
+SmartBite is a mobile-first app that helps communities eat well within their budget. It combines AI-generated meal planning with **crowd-powered grocery pricing** — every user who scans a barcode at the shelf contributes real price data that helps their whole neighbourhood save money. Users set a weekly food budget, dietary goals, and preferred retailers — the app generates personalised recipes, surfaces community-reported prices across their chosen stores, tracks their purchase history to tailor future shopping lists, and learns from their favourites over time.
+
+**Core value proposition:** "Band together to eat better for less." The more people scan, the more accurate prices become for everyone. Early users are pioneers who are building the price database that powers the whole community.
+
+**Revenue:** Freemium subscriptions (RevenueCat). Free users contribute and benefit from community pricing. Plus/Pro users unlock AI personalisation, price trend analysis, cross-store split optimisation, price drop alerts, and AI-powered purchase habit reminders.
+
+**Long-term vision:** The community scan engine and Item catalog are category-agnostic by design. V1 is grocery-only, but the same infrastructure extends to fuel prices (gas stations), home improvement supplies (lumber, hardware), and any other regularly purchased goods — without schema migrations.
 
 ---
 
@@ -16,67 +22,85 @@ SmartBite is a mobile-first app that helps users eat well within their budget. I
 
 Six chains. No exceptions in V1.
 
-| Chain | Relationship | TX Stores | Pricing Source | Notes |
-|---|---|---|---|---|
-| HEB | Independent | ~400 | MealMe | Dominant in Austin, SA, Houston |
-| Central Market | HEB-owned | ~10 | MealMe (same as HEB) | Premium tier, same API surface |
-| Whole Foods | Amazon-owned | ~37 | MealMe (Amazon umbrella) | Austin HQ, strong in major metros |
-| Walmart | Walmart Inc. | ~600 | MealMe | Widest TX coverage, budget anchor |
-| Kroger | Kroger Co. | ~200 | Kroger API + MealMe | Dallas/Houston strong |
-| Aldi | Aldi Inc. | ~90 | MealMe + scrape fallback | Discount tier, no official API |
+Since there is no longer a pricing API dependency, **V1 supports all Texas grocery stores** — not just 6 chains. The store selector is a pre-populated static list of all major TX grocery chains. Users pick whichever stores they shop at, with no cap.
 
-**Amazon Fresh is excluded from V1** — minimal physical TX footprint, primarily
-a delivery brand. Whole Foods replaces it: same Amazon/MealMe API, far larger
-walk-in presence across Austin, Houston, and Dallas.
+**TX grocery store list (pre-populated, not exhaustive — add more as needed):**
 
-**6 brands = 4 API integrations:**
-- HEB + Central Market → 1 MealMe call (shared HEB backend)
-- Whole Foods → 1 MealMe call (Amazon grocery umbrella)
-- Walmart → 1 MealMe call
-- Kroger → Kroger API (+ MealMe fallback)
-- Aldi → MealMe (+ scrape fallback)
+| Tier | Chains |
+|---|---|
+| Budget | Aldi, Walmart Supercenter, Walmart Neighborhood Market, WinCo Foods, Dollar General (Grocery) |
+| Everyday | HEB, HEB Plus!, Kroger, Kroger Marketplace, Fiesta Mart, Randalls, Tom Thumb, United Supermarkets, Market Street, Brookshire Brothers, Brookshire's, Sprouts Farmers Market, Target (Grocery) |
+| Premium | Whole Foods Market, Central Market, Trader Joe's |
+| Warehouse | Costco, Sam's Club |
+| Specialty | La Michoacana Meat Market, El Rancho Supermercado, Mi Tienda (HEB), Minyard Food Stores |
 
-Explicitly excluded from V1: Amazon Fresh, Sprouts, Trader Joe's, Tom Thumb.
+**No V1 chain restriction.** Any store in Texas can receive community price scans.
+
+**Cold-start strategy:** Stores with no scan data show "Be the first to scan this item!" — framed as community building, not a gap. Bites rewards incentivise early scanning at any store.
 
 ### What Texas-only removes from V1
-- Zyte scraper API — not needed, MealMe + Kroger API covers all 6 V1 TX chains
+- MealMe API — deprecated; community crowdsourcing replaces it entirely
+- Kroger Developer API — removed; no longer needed since we're not pulling prices from third parties
+- Zyte scraper API — not needed
 - Multi-timezone push notification logic — all users in Central Time
 - Nationwide leaderboard — replaced with city-level (Austin, Houston, Dallas, San Antonio)
-- Sprouts, Trader Joe's, Tom Thumb — explicitly excluded from V1
 
-### Store onboarding — V1 chain filter
-Query MealMe for nearby stores on onboarding, filtered to V1 chains only.
+### Store onboarding — all TX stores, static list
+No API call needed for store discovery. The mobile app ships with `TX_GROCERY_STORES`
+pre-loaded. Users search/filter by name or tier. No cap on how many stores a user can add.
 
 ```typescript
 // src/data/txStores.ts
 
-export const V1_SUPPORTED_CHAINS = [
-  'heb',
-  'centralmarket',
-  'wholefoods',
-  'walmart',
-  'kroger',
-  'aldi',
-] as const
+export type StoreTier = 'budget' | 'everyday' | 'premium' | 'warehouse' | 'specialty'
 
-export type SupportedChain = typeof V1_SUPPORTED_CHAINS[number]
+export interface TXStore {
+  name: string
+  chain: string
+  tier: StoreTier
+  logo: { bg: string; text: string; color: string }
+}
 
-export const TX_STORE_SEED = [
-  { name: 'HEB', chain: 'heb', tier: 'everyday', logo: { bg: '#E8F5E9', text: 'H', color: '#2E7D32' } },
-  { name: 'Central Market', chain: 'centralmarket', tier: 'premium', logo: { bg: '#F3E5F5', text: 'CM', color: '#6A1B9A' }, note: 'HEB-owned' },
-  { name: 'Whole Foods', chain: 'wholefoods', tier: 'premium', logo: { bg: '#EAF7EA', text: 'WF', color: '#1A6B1A' }, note: 'Amazon-owned' },
-  { name: 'Walmart Supercenter', chain: 'walmart', tier: 'budget', logo: { bg: '#E3F2FD', text: 'W', color: '#1565C0' } },
-  { name: 'Kroger', chain: 'kroger', tier: 'everyday', logo: { bg: '#E8F5E9', text: 'K', color: '#2E7D32' } },
+export const TX_GROCERY_STORES: TXStore[] = [
+  // Budget
   { name: 'Aldi', chain: 'aldi', tier: 'budget', logo: { bg: '#FFF8E1', text: 'A', color: '#F57F17' } },
+  { name: 'Walmart Supercenter', chain: 'walmart', tier: 'budget', logo: { bg: '#E3F2FD', text: 'W', color: '#1565C0' } },
+  { name: 'Walmart Neighborhood Market', chain: 'walmart', tier: 'budget', logo: { bg: '#E3F2FD', text: 'W', color: '#1565C0' } },
+  { name: 'WinCo Foods', chain: 'winco', tier: 'budget', logo: { bg: '#FFF3E0', text: 'WC', color: '#E65100' } },
+  { name: 'Dollar General (Grocery)', chain: 'dollargeneral', tier: 'budget', logo: { bg: '#FFF9C4', text: 'DG', color: '#F9A825' } },
+  // Everyday
+  { name: 'HEB', chain: 'heb', tier: 'everyday', logo: { bg: '#E8F5E9', text: 'H', color: '#2E7D32' } },
+  { name: 'HEB Plus!', chain: 'heb', tier: 'everyday', logo: { bg: '#E8F5E9', text: 'H+', color: '#2E7D32' } },
+  { name: 'Kroger', chain: 'kroger', tier: 'everyday', logo: { bg: '#E8F5E9', text: 'K', color: '#1565C0' } },
+  { name: 'Kroger Marketplace', chain: 'kroger', tier: 'everyday', logo: { bg: '#E8F5E9', text: 'KM', color: '#1565C0' } },
+  { name: 'Fiesta Mart', chain: 'fiestamart', tier: 'everyday', logo: { bg: '#FCE4EC', text: 'FM', color: '#C62828' } },
+  { name: 'Randalls', chain: 'randalls', tier: 'everyday', logo: { bg: '#E8EAF6', text: 'R', color: '#283593' } },
+  { name: 'Tom Thumb', chain: 'tomthumb', tier: 'everyday', logo: { bg: '#E8EAF6', text: 'TT', color: '#283593' } },
+  { name: 'United Supermarkets', chain: 'united', tier: 'everyday', logo: { bg: '#E3F2FD', text: 'U', color: '#1565C0' } },
+  { name: 'Market Street', chain: 'marketstreet', tier: 'everyday', logo: { bg: '#E3F2FD', text: 'MS', color: '#1565C0' } },
+  { name: 'Brookshire Brothers', chain: 'brookshirebrothers', tier: 'everyday', logo: { bg: '#E8F5E9', text: 'BB', color: '#1B5E20' } },
+  { name: "Brookshire's", chain: 'brookshires', tier: 'everyday', logo: { bg: '#E8F5E9', text: "B'", color: '#1B5E20' } },
+  { name: 'Sprouts Farmers Market', chain: 'sprouts', tier: 'everyday', logo: { bg: '#F1F8E9', text: 'SF', color: '#558B2F' } },
+  { name: 'Target (Grocery)', chain: 'target', tier: 'everyday', logo: { bg: '#FFEBEE', text: 'T', color: '#B71C1C' } },
+  // Premium
+  { name: 'Whole Foods Market', chain: 'wholefoods', tier: 'premium', logo: { bg: '#EAF7EA', text: 'WF', color: '#1A6B1A' } },
+  { name: 'Central Market', chain: 'centralmarket', tier: 'premium', logo: { bg: '#F3E5F5', text: 'CM', color: '#6A1B9A' } },
+  { name: "Trader Joe's", chain: 'traderjoes', tier: 'premium', logo: { bg: '#FFF8E1', text: 'TJ', color: '#BF360C' } },
+  // Warehouse
+  { name: 'Costco', chain: 'costco', tier: 'warehouse', logo: { bg: '#E3F2FD', text: 'C', color: '#0D47A1' } },
+  { name: "Sam's Club", chain: 'samsclub', tier: 'warehouse', logo: { bg: '#E3F2FD', text: 'SC', color: '#0D47A1' } },
+  // Specialty
+  { name: 'La Michoacana Meat Market', chain: 'lamichoacana', tier: 'specialty', logo: { bg: '#FCE4EC', text: 'LM', color: '#880E4F' } },
+  { name: 'El Rancho Supermercado', chain: 'elrancho', tier: 'specialty', logo: { bg: '#FCE4EC', text: 'ER', color: '#880E4F' } },
+  { name: 'Mi Tienda', chain: 'mitienda', tier: 'specialty', logo: { bg: '#E8F5E9', text: 'MT', color: '#2E7D32' } },
+  { name: 'Minyard Food Stores', chain: 'minyards', tier: 'specialty', logo: { bg: '#FFF3E0', text: 'MF', color: '#E65100' } },
 ]
 
-// Filter MealMe results to V1 supported chains only
-export function filterToV1Stores(stores: MealMeStore[]): MealMeStore[] {
-  return stores.filter(s =>
-    V1_SUPPORTED_CHAINS.some(chain =>
-      s.name.toLowerCase().includes(chain) ||
-      s.chain?.toLowerCase() === chain
-    )
+// Used in onboarding store search — filters by name or tier
+export function searchStores(query: string): TXStore[] {
+  const q = query.toLowerCase()
+  return TX_GROCERY_STORES.filter(s =>
+    s.name.toLowerCase().includes(q) || s.chain.includes(q) || s.tier.includes(q)
   )
 }
 ```
@@ -96,9 +120,99 @@ model Waitlist {
 }
 ```
 
-### V2 national expansion
-TX → FL → CA → NY. One state at a time. Trigger: ~2,000 TX users with
-~60% canonical price coverage signals the model is proven.
+### National expansion — architecture provisions
+
+V1 is Texas-only. The architecture is designed so national expansion is an addition, not a rewrite.
+
+**Expansion path:** TX → FL → CA → NY. One state at a time.
+Trigger: ~2,000 TX users with ~60% canonical price coverage signals the model is proven.
+
+**What must be state-aware from day one (build this way in V1):**
+
+| Concern | V1 (TX) | V2+ (national) |
+|---|---|---|
+| Store list | `TX_GROCERY_STORES` static array | `STORES_BY_STATE[state]` map — same structure, more entries |
+| Geo restriction | TX bounding-box check | State-level bounding boxes per activated state |
+| Community leaderboard | City-level (Austin, Houston, etc.) | Same model, scoped to `storeLocation.state` |
+| Waitlist | Captures `state` field | Shows "We're not in [state] yet — join waitlist" |
+| Store chain keys | TX chains (`heb`, `kroger`, etc.) | Additional chains per state — same `chain` key pattern |
+
+**Code conventions to follow in V1 so V2 doesn't require rewrites:**
+```typescript
+// ✅ Do this — state-scoped data function
+export function getStoresForState(state: string): TXStore[] {
+  // V1: always returns TX_GROCERY_STORES (state param ignored)
+  // V2: switch on state to return the right list
+  return TX_GROCERY_STORES
+}
+
+// ❌ Don't do this — hardcoded Texas assumption in business logic
+import { TX_GROCERY_STORES } from './txStores'
+```
+
+```prisma
+// PriceObservation already stores storeLocation as JSON { lat, lng, address }
+// Add storeLocation.state to that JSON in V1 so V2 can filter by state without migration
+// storeLocation: { lat, lng, address, city, state: "TX" }
+
+// Waitlist already has state field — use it
+model Waitlist {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  state     String?  // "TX", "FL", etc.
+  city      String?
+  createdAt DateTime @default(now())
+}
+```
+
+**What stays TX-only until V2:**
+- Push notification timezone logic (all Central Time in V1)
+- The `stores.tsx` onboarding screen hardcodes the TX store list (acceptable for V1)
+
+### Category expansion — V2+ architecture
+
+The `Item` catalog and scan pipeline are category-agnostic from day one. Adding a new
+category in V2 means populating more `Item` rows and updating the store/vendor list —
+not a schema migration.
+
+**How much work is a new category? (honest estimate)**
+
+The data layer is already ~70% done. The schema, API conventions, and code contracts
+are already in place. Each new category is roughly a **2-sprint addition in V2**:
+
+| Layer | V1 status | What changes per new category |
+|---|---|---|
+| Database schema | ✅ Done — `ItemCategory` enum, all models have `itemCategory` field | New `Item` rows only — no migrations ever |
+| API endpoints | ✅ Partially done — all endpoints accept `?category=` param | Add category-specific validation + vendor list |
+| Scan mechanic | ✅ Barcode scanner built in Sprint 4 | FUEL = manual price entry (no barcode); others reuse barcode scanner |
+| Vendor/store list | ✅ Pattern established via `TX_GROCERY_STORES` | New `TX_VENDORS_BY_CATEGORY[category]` array — same structure |
+| UI flows | ❌ Grocery-specific only in V1 | Fuel has no pantry; home improvement has "supplies" not meals |
+| Meal planning | N/A — stays grocery-only forever | Not applicable to non-food categories |
+| Reminders | ✅ Category-agnostic already | Push copy changes ("Time to fill up" vs "Restock eggs") |
+
+**Decision: V1 is the blueprint. Do not build non-grocery UX flows in V1.**
+The architecture is already correct. Every V2 category addition is additive, not a rewrite.
+The trigger for V2 category expansion is the same as national expansion: ~2,000 TX users
+and a proven crowdsourced pricing model.
+
+**Planned expansion categories:**
+
+| Category | Vendor type | Scan mechanic | Notes |
+|---|---|---|---|
+| `FUEL` | Gas stations (Shell, Chevron, HEB Gas, Buc-ee's) | Manual price entry at pump (no barcode) | Price per gallon; grade selector (87/89/93/diesel) |
+| `HOME_IMPROVEMENT` | Home Depot, Lowe's, Ace Hardware | Barcode scan (same scanner) | Lumber, fasteners, paint — high price variance by region |
+| `HOUSEHOLD` | Walmart, Target, Dollar General | Barcode scan | Cleaning supplies, paper goods |
+| `PERSONAL_CARE` | CVS, Walgreens, HEB Pharmacy | Barcode scan | |
+
+**What changes per category:**
+- `Item.category` enum value
+- Vendor list entry (same `TXStore` / future `Vendor` structure)
+- Pantry UX for non-food items (FUEL has no pantry — skip; HOME_IMPROVEMENT has a "supplies" inventory)
+- Reminder push copy ("Time to fill up — you usually get gas every 4 days")
+
+**V1 code contract:** Any function that filters by category must accept `ItemCategory[]`
+as a parameter, not hardcode `GROCERY`. Pantry and reminder endpoints should already
+accept a `?category=` query param even if V1 only serves `GROCERY`.
 
 ---
 
@@ -121,14 +235,11 @@ TX → FL → CA → NY. One state at a time. Trigger: ~2,000 TX users with
 - **Hosting**: Railway or Fly.io
 
 ### AI & data APIs
-- **Recipe generation + personalisation**: Anthropic Claude API (`claude-sonnet-4-6`)
+- **Recipe generation + personalisation + price trend suggestions**: Anthropic Claude API (`claude-sonnet-4-6`)
 - **Recipe database**: Spoonacular API
 - **Nutrition data**: Edamam API + USDA FoodData Central (free)
-- **Grocery pricing — primary**: MealMe API (100K+ stores, 200M SKUs)
-- **Grocery pricing — chain-specific**: Kroger Developer API
-  *(Instacart IDP was evaluated but dropped from V1 — Texas coverage is met by MealMe + Kroger. Reserved for national expansion.)*
-- **Grocery pricing — fallback/scraping**: Zyte Scraper API *(reserved — post-V1 only, not used in Texas launch)*
-- **Open food data**: Open Food Facts (free, no rate limits)
+- **Grocery pricing**: Community crowdsourced only (`PriceObservation` → `CanonicalPrice` pipeline). No third-party pricing APIs. Kroger API removed. MealMe deprecated.
+- **Product barcode lookup**: Open Food Facts (free, no rate limits) + USDA FoodData Central
 
 ### Payments
 - **Subscriptions**: RevenueCat (handles iOS + Android billing + webhooks)
@@ -289,6 +400,8 @@ model User {
   // Subscription
   tier              Tier      @default(FREE)
   revenueCatUserId  String?
+  trialEndsAt       DateTime? // set to now+7d on signup; null after expiry or paid conversion
+  hasUsedTrial      Boolean   @default(false) // prevents second-account trial gaming
 
   // Profile
   profile           UserProfile?
@@ -309,9 +422,8 @@ model UserProfile {
   // Budget + shopping
   weeklyBudget       Float
   location           Json      // { zip, lat, lng, city }
-  preferredRetailers String[]  // max 2 entries, V1_SUPPORTED_CHAINS only
-  maxStores          Int       @default(1)   // 1 or 2 — user opts into 2-store split
-  locationRadius     Int       @default(10)  // miles — stores shown within this radius
+  preferredRetailers String[]  // chain keys from TX_GROCERY_STORES — no cap, any TX store
+  locationRadius     Int       @default(10)  // miles — used for geo-restriction check only
 
   // Dietary
   dietaryGoals       String[]  // ["high-protein", "low-carb", "vegan"]
@@ -444,6 +556,121 @@ enum MealType {
   DINNER
   SNACK
 }
+
+// ── Purchase history ──────────────────────────────────────────────────────────
+// Records what a user personally bought — distinct from PriceObservation
+// (community price report). Both can be written in the same scan action.
+
+model PurchaseHistory {
+  id             String       @id @default(cuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  itemId         String?                       // FK to Item — preferred going forward
+  item           Item?        @relation(fields: [itemId], references: [id])
+  itemName       String                        // denormalised (e.g. "chicken breast", "87 Octane")
+  itemCategory   ItemCategory @default(GROCERY)
+  upc            String?                       // if product was scanned
+  quantity       Float                         // how much they bought
+  unit           String                        // "lb", "oz", "each", "gallon", etc.
+  pricePerUnit   Float
+  totalPrice     Float
+  storeName      String
+  storeId        String?
+  planId         String?                       // which weekly meal plan this belonged to (GROCERY only)
+  purchasedAt    DateTime     @default(now())
+
+  @@index([userId, itemId])
+  @@index([userId, itemName])
+  @@index([userId, purchasedAt])
+}
+```
+
+Add to User model:
+```prisma
+purchaseHistory    PurchaseHistory[]
+pantryItems        PantryItem[]
+purchaseReminders  PurchaseReminder[]
+```
+
+```prisma
+// ── Purchase reminders (Pro) ──────────────────────────────────────────────────
+// User-defined restock reminders for staple items (eggs, milk, olive oil, etc.)
+// Frequency and quantity are set by the user. Auto-suggestions come from PurchaseHistory.
+
+model PurchaseReminder {
+  id              String       @id @default(cuid())
+  userId          String
+  user            User         @relation(fields: [userId], references: [id])
+  itemId          String?                      // FK to Item
+  item            Item?        @relation(fields: [itemId], references: [id])
+  itemName        String       // e.g. "eggs", "87 Octane", "WD-40"
+  itemCategory    ItemCategory @default(GROCERY)
+  quantity        Float        // how much to buy
+  unit            String       // "each", "gallon", "oz", "can", etc.
+  frequencyDays   Int          // remind every N days
+  lastRemindedAt  DateTime?    // null = never fired
+  nextRemindAt    DateTime     // computed: lastRemindedAt + frequencyDays (or now on create)
+  active          Boolean      @default(true)
+  source          String       @default("manual")  // "manual" | "ai_suggested" | "rule_suggested"
+  reasoning       String?      // AI reasoning string when source = "ai_suggested"
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([userId, itemName])
+  @@index([userId, nextRemindAt])    // used by the daily reminder job
+  @@index([userId, itemCategory])
+}
+```
+
+```prisma
+// ── Pantry ────────────────────────────────────────────────────────────────────
+// Represents what is currently in the user's physical pantry.
+// Updated by: manual input, purchase history auto-sync, recipe cooked deductions.
+
+model PantryItem {
+  id              String       @id @default(cuid())
+  userId          String
+  user            User         @relation(fields: [userId], references: [id])
+  itemId          String?                      // FK to Item
+  item            Item?        @relation(fields: [itemId], references: [id])
+  itemName        String       // normalised (e.g. "chicken breast", "olive oil", "wood screws")
+  itemCategory    ItemCategory @default(GROCERY)
+  quantity        Float        // current amount on hand
+  unit            String       // "lb", "oz", "cups", "each", "gallon", etc.
+  notes           String?      // e.g. "expires Fri", "opened"
+  lastRestockedAt DateTime?    // set when quantity increases (purchase sync)
+  updatedAt       DateTime     @updatedAt
+
+  ledger          PantryLedger[]
+
+  @@unique([userId, itemName])
+  @@index([userId])
+  @@index([userId, itemCategory])
+}
+
+model PantryLedger {
+  id            String       @id @default(cuid())
+  userId        String
+  pantryItemId  String
+  pantryItem    PantryItem   @relation(fields: [pantryItemId], references: [id])
+  delta         Float        // positive = added, negative = used/removed
+  unit          String
+  action        PantryAction
+  referenceId   String?      // purchaseId, mealId, etc.
+  note          String?
+  createdAt     DateTime     @default(now())
+
+  @@index([pantryItemId, createdAt])
+}
+
+enum PantryAction {
+  MANUAL_ADD       // user manually added stock
+  MANUAL_REMOVE    // user manually removed/corrected stock
+  PURCHASE         // synced from PurchaseHistory
+  RECIPE_COOKED    // deducted when user marks a recipe as cooked
+  EXPIRED          // user marked as expired/discarded
+  ADJUSTMENT       // bulk correction
+}
 ```
 
 ---
@@ -508,9 +735,97 @@ POST   /collections/:id/recipes    # Add recipe to collection
 DELETE /collections/:id/recipes/:recipeId
 ```
 
+### Purchase history
+```
+POST   /purchases                  # Record a purchase (called on shopping list check-off)
+GET    /purchases?ingredientName=  # History for a specific ingredient
+GET    /purchases/summary          # All-time ingredient purchase summary for profile
+```
+
+### Pantry
+```
+GET    /pantry                     # All pantry items for the current user
+POST   /pantry                     # Manually add or update a pantry item
+PUT    /pantry/:ingredientName     # Update quantity / unit / notes for an item
+DELETE /pantry/:ingredientName     # Remove item from pantry
+POST   /pantry/sync-purchase       # Sync a purchase into pantry (called automatically after POST /purchases)
+GET    /pantry/check?ingredients=  # Check pantry coverage for a list of ingredients (used by recipe detail)
+```
+
+### Recipes — mark as cooked
+```
+POST   /recipes/:id/cooked         # Mark a recipe as cooked; deducts ingredients from pantry
+```
+
+Request body:
+```json
+{ "servings": 2, "planMealId": "optional" }
+```
+
+Response:
+```json
+{
+  "deductions": [
+    { "ingredientName": "chicken breast", "deducted": 0.5, "unit": "lb", "remaining": 1.5 },
+    { "ingredientName": "olive oil", "deducted": 2, "unit": "tbsp", "remaining": 8 }
+  ],
+  "missingFromPantry": ["garlic", "lemon"],
+  "timesCooked": 3
+}
+```
+
+Behaviour:
+1. For each ingredient in `recipe.ingredients`, scale by `servings / recipe.servings`
+2. Deduct from matching `PantryItem` (unit-normalised). If pantry item doesn't exist or goes negative, clamp to 0 and add to `missingFromPantry`
+3. Write a `PantryLedger` entry with `action: RECIPE_COOKED` and `referenceId: planMealId`
+4. If recipe is in user's `Favourite`, increment `timesCooked`
+5. If `planMealId` provided, mark that `Meal` as cooked (future use)
+
+### Price trends & AI suggestions
+```
+GET    /prices/trends?ingredient=&storeId=&days=   # Bucketed price history (Pro)
+GET    /prices/suggestion?ingredient=&storeId=     # Claude-generated buy/sell suggestion (Pro)
+```
+
+### Purchase reminders (Pro)
+```
+GET    /reminders                  # List all reminders for the current user
+POST   /reminders                  # Create a reminder
+PUT    /reminders/:id              # Update frequency, quantity, or unit
+DELETE /reminders/:id              # Remove a reminder
+GET    /reminders/suggestions      # Suggest staples based on PurchaseHistory patterns
+```
+
+`POST /reminders` body:
+```json
+{ "ingredientName": "eggs", "quantity": 12, "unit": "each", "frequencyDays": 7 }
+```
+
+`GET /reminders/suggestions` — powered by Claude habit learning (Pro only). Passes the
+user's full `PurchaseHistory` for each item to Claude, which identifies patterns beyond
+simple averages: seasonality, quantity drift, price-sensitivity behaviour, correlation with
+meal plans. Returns structured suggestions with a natural-language reasoning string.
+
+```typescript
+// Response shape from GET /reminders/suggestions
+interface ReminderSuggestion {
+  itemName: string
+  itemCategory: ItemCategory         // GROCERY, FUEL, HOME_IMPROVEMENT, etc.
+  suggestedQuantity: number
+  suggestedUnit: string
+  suggestedFrequencyDays: number
+  confidence: 'high' | 'medium' | 'low'
+  reasoning: string                  // e.g. "You buy milk every 4–5 days, usually 1 gallon.
+                                     //  Usage increases in winter months."
+}
+```
+
+Minimum data threshold before calling Claude: ≥ 3 purchases of the same item.
+Below threshold: return rule-based suggestions only (average interval, no Claude call).
+
 ### Health
 ```
-GET    /health                     # Unauthenticated — checks MealMe, Kroger, Anthropic status
+GET    /health                     # Unauthenticated — checks Kroger, Anthropic status
 ```
 
 ### Subscriptions
@@ -532,33 +847,42 @@ Apply `checkTier` middleware to enforce limits per route:
 export const TIER_LIMITS = {
   FREE: {
     mealPlansPerWeek: 2,
-    storesPerScan: 1,
+    maxStores: Infinity,         // no limit — community scanning is the product for all tiers
     maxFavourites: 10,
     maxCollections: 1,
     aiPersonalisation: false,
+    priceTrends: false,
+    aiPriceSuggestions: false,
     priceAlerts: false,
+    purchaseReminders: false,
     nutritionDeepDive: false,
     familyProfiles: 0,
-    crossStoreComparison: false,
+    crossStoreComparison: true,  // free users can see split suggestion (drives upgrade awareness)
   },
   PLUS: {
     mealPlansPerWeek: 7,
-    storesPerScan: 2,  // V1 cap: users can only save 2 stores; Plus unlocks cross-store comparison across both. Raise in V2 when national expansion adds more chains.
+    maxStores: Infinity,
     maxFavourites: Infinity,
     maxCollections: Infinity,
     aiPersonalisation: true,
+    priceTrends: false,
+    aiPriceSuggestions: false,
     priceAlerts: true,
+    purchaseReminders: false,
     nutritionDeepDive: false,
     familyProfiles: 0,
     crossStoreComparison: true,
   },
   PRO: {
     mealPlansPerWeek: Infinity,
-    storesPerScan: 2,  // V1 cap: same as Plus. Infinity in V2 when national expansion adds more chains.
+    maxStores: Infinity,
     maxFavourites: Infinity,
     maxCollections: Infinity,
     aiPersonalisation: true,
+    priceTrends: true,           // 7/30/90-day ingredient price history
+    aiPriceSuggestions: true,    // Claude-powered buy/hold/substitute recommendations
     priceAlerts: true,
+    purchaseReminders: true,     // scheduled push reminders for staples (eggs, milk, etc.)
     nutritionDeepDive: true,
     familyProfiles: 5,
     crossStoreComparison: true,
@@ -661,37 +985,38 @@ interface StoreResult {
 }
 
 export async function scanPrices(input: ScanInput): Promise<StoreResult[]> {
-  const storesToScan = input.preferredRetailers.slice(0, input.maxStores)
-
-  // 1. Query MealMe API for each store
+  // Query CanonicalPrice (community DB) for each of the user's selected stores
   const results = await Promise.all(
-    storesToScan.map(store => queryMealMe(store, input.ingredients, input.userLocation))
+    input.preferredRetailers.map(store =>
+      queryCanonicalPrices(store, input.ingredients)
+    )
   )
-
-  // 2. Fill gaps with Kroger API where applicable
-  // 3. Fall back to Zyte scraper for stores not in MealMe (post-V1 only)
-
   return results.sort((a, b) => a.totalCost - b.totalCost)
 }
 
-async function queryMealMe(
+async function queryCanonicalPrices(
   storeName: string,
-  ingredients: ScanInput["ingredients"],
-  location: ScanInput["userLocation"]
+  ingredients: ScanInput["ingredients"]
 ): Promise<StoreResult> {
-  const response = await fetch("https://api.mealme.ai/v3/grocery/search", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${process.env.MEALME_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      store_name: storeName,
-      location: { lat: location.lat, lng: location.lng },
-      items: ingredients.map(i => ({ query: i.name, quantity: i.amount, unit: i.unit })),
-    }),
-  })
-  return response.json()
+  const items = await Promise.all(
+    ingredients.map(async (ing) => {
+      const canonical = await prisma.canonicalPrice.findFirst({
+        where: {
+          storeName: { equals: storeName, mode: 'insensitive' },
+          // match ingredient name via Product → UPC lookup or direct name match
+        },
+        orderBy: { lastUpdated: 'desc' },
+      })
+      return {
+        ingredient: ing.name,
+        price: canonical?.weightedPrice ?? null,  // null = no community data yet
+        unit: ing.unit,
+        available: canonical !== null,
+      }
+    })
+  )
+  const totalCost = items.reduce((sum, i) => sum + (i.price ?? 0), 0)
+  return { storeName, storeId: storeName, totalCost, items }
 }
 ```
 
@@ -752,12 +1077,8 @@ SPOONACULAR_API_KEY=your-key
 EDAMAM_APP_ID=your-id
 EDAMAM_APP_KEY=your-key
 
-# Grocery Pricing APIs
-MEALME_API_KEY=your-key
-KROGER_CLIENT_ID=your-id
-KROGER_CLIENT_SECRET=your-secret
-INSTACART_API_KEY=your-key
-ZYTE_API_KEY=your-key
+# Grocery Pricing APIs — community-sourced only; no third-party pricing API keys needed in V1
+# ZYTE_API_KEY=your-key   # reserved for post-V1 expansion if needed
 
 # Infrastructure
 REDIS_HOST=localhost
@@ -782,19 +1103,31 @@ app/
 │   ├── signup.tsx              # Sign up
 │   └── onboarding/
 │       ├── budget.tsx          # Set weekly budget
-│       ├── retailers.tsx       # Pick preferred stores (location-aware)
+│       ├── stores.tsx          # Pick stores from TX_GROCERY_STORES (searchable dropdown)
 │       ├── dietary.tsx         # Goals, allergies, cuisine prefs
 │       └── complete.tsx        # Ready — generate first plan
 │
 ├── (tabs)/
-│   ├── _layout.tsx             # Tab bar config
+│   ├── _layout.tsx             # Tab bar config (5 tabs: Home, Explore, Pantry, Saved, Profile)
 │   ├── index.tsx               # Home: this week's meal plan
 │   ├── explore.tsx             # Discover recipes (Spoonacular browse)
+│   ├── pantry.tsx              # Pantry: current stock, add items, view history
 │   ├── saved.tsx               # Favourites + collections
-│   └── profile.tsx             # Account, preferences, subscription
+│   └── profile.tsx             # Account, preferences, rewards, subscription
 │
-└── recipe/
-    └── [id].tsx                # Recipe detail, price comparison, favourite btn
+├── recipe/
+│   └── [id].tsx                # Recipe detail, price comparison, favourite btn, mark as cooked
+│
+├── pantry/
+│   └── [ingredientName].tsx    # Pantry item detail: quantity history, edit, ledger
+│
+├── scanner/
+│   ├── index.tsx               # Camera view + barcode overlay
+│   ├── confirm.tsx             # Price + quantity confirmation
+│   └── success.tsx             # Item checked off + Bites celebration
+│
+└── shopping-list/
+    └── [planId].tsx            # Shopping list grouped by store, check-off flow
 ```
 
 ---
@@ -807,13 +1140,21 @@ components/
 ├── RecipeCard.tsx              # Card with image, cost, tags
 ├── RecipeDetail.tsx            # Full recipe view
 ├── PriceCompareBar.tsx         # Store vs store cost comparison
+├── BestStoreCard.tsx           # Winner store card with savings callout
 ├── FavouriteButton.tsx         # Heart toggle with animation
 ├── CollectionPicker.tsx        # Sheet: save to collection
-├── StoreSelector.tsx           # Retailer multi-select with location
+├── StoreSelector.tsx           # Store search + multi-select from TX_GROCERY_STORES
 ├── BudgetGauge.tsx             # Visual weekly spend tracker
 ├── TierGatePrompt.tsx          # Upgrade prompt when hitting a limit
 ├── NutritionCard.tsx           # Macro breakdown (Pro)
-└── OnboardingStep.tsx          # Reusable onboarding wrapper
+├── OnboardingStep.tsx          # Reusable onboarding wrapper
+├── PantryList.tsx              # Grouped pantry items with quantity chips
+├── PantryItemRow.tsx           # Single pantry row: name, quantity, unit, last restocked
+├── PantryItemEditor.tsx        # Sheet: add/edit pantry item (name, qty, unit, notes)
+├── CookConfirmSheet.tsx        # Sheet: servings picker + pantry deduction preview
+├── PantryIngredientBadge.tsx   # "In pantry: 1.5 lb" chip shown on recipe ingredients
+├── ReminderCard.tsx            # Reminder row: ingredient, quantity, frequency chip, next-due
+└── ReminderEditor.tsx          # Sheet: ingredient name, qty + unit pickers, frequency picker
 ```
 
 ---
@@ -835,7 +1176,7 @@ screen with an empty state that says "Generate your first meal plan."
 **What you can demo:**
 - Splash screen → Sign up / Log in
 - Location permission prompt → nearby stores auto-loaded and sorted by distance
-- Store selector (pick up to 2, greyed-out UI after 2)
+- Store selector (searchable dropdown from TX_GROCERY_STORES, any number of stores)
 - Budget input screen
 - Dietary goals + allergies screen
 - Home screen with empty state + "Generate plan" CTA
@@ -844,8 +1185,8 @@ screen with an empty state that says "Generate your first meal plan."
 - [x] Monorepo setup (Turborepo, Expo, Fastify, Prisma, pnpm)
 - [x] Supabase project + full schema migration (ALL models including rewards/scanner groundwork)
 - [x] Auth: signup, login, logout, JWT middleware, `/auth/me`
-- [x] `GET /stores/nearby` — query MealMe store search by lat/lng, return sorted by distance
-- [x] User profile CRUD — budget, retailers (max 2), dietary, location
+- [x] `GET /stores/nearby` — serve static `TX_GROCERY_STORES` list; no external API call needed
+- [x] User profile CRUD — budget, retailers (any TX stores, no cap), dietary, location
 
 **Mobile tasks:**
 - [x] Expo Router scaffold with tab navigator (4 tabs in S1–S6: Home, Plan, Shop, Saved — Rewards tab added in Sprint 7)
@@ -861,7 +1202,7 @@ screen with an empty state that says "Generate your first meal plan."
 ✓ App installs on iOS Simulator (npx expo start)
 ✓ Can create account with email + password
 ✓ Location permission granted → nearby stores appear sorted by distance
-✓ Can select up to 2 stores (3rd selection is blocked)
+✓ Can select any number of stores from TX_GROCERY_STORES static list
 ✓ Budget and dietary prefs saved and visible on Profile screen
 ✓ Home screen shows correct empty state
 ✓ Closing and reopening the app restores logged-in session
@@ -932,13 +1273,13 @@ checkable.
 - Tap an ingredient on the list to check it off
 
 **Backend tasks:**
-- [x] MealMe API client — `queryMealMe`, response normalisation, error handling
-- [x] Kroger API client — OAuth2, product search, price extraction
+- [x] Kroger API client — OAuth2, product search, price extraction (**subsequently removed post-Sprint 3; Kroger is now community-scanned like all other stores**)
 - [x] `scanPrices` orchestrator — fan out to user's stores, compute `bestSingleStore` + `bestSplitOption`
 - [x] Split optimizer — greedy per-ingredient algorithm, `SPLIT_THRESHOLD = $3`
 - [x] `GET /prices/scan?recipeId=&planId=` with store count tier gate
 - [x] Redis price cache — 1hr TTL per `(recipeId, storeList)` hash
 - [x] `GET /shopping-list/:planId` — full week's ingredients merged, deduped, sorted by store
+- [x] MealMe API client — **deprecated; client file retained but disabled. Community scan pipeline is the replacement.**
 
 **Mobile tasks:**
 - [x] Price section on recipe detail — ingredient rows with per-store prices
@@ -948,22 +1289,161 @@ checkable.
 - [x] Split view — two store cards with their assigned items
 - [x] Shopping list screen — grouped by store, checkable rows, progress bar
 - [ ] "Add to this week's plan" CTA on recipe detail
+  Deferred pending product definition.
+
+> **Pricing pivot note:** MealMe API is deprecated. Sprint 3 UI is complete and the
+> degraded-state path (no live prices → "scan to unlock" CTA) is now the correct
+> permanent behaviour for non-Kroger stores until community scan data accumulates.
+> The scanner (Sprint 4) is the data source that feeds prices back into this UI.
 
 **Definition of done:**
 ```
-✓ Recipe detail shows real prices from at least 1 live store (not mock data)
+✓ Recipe detail shows Kroger prices for Kroger stores; "scan to unlock" for others
 ✓ "Best store" correctly identifies cheapest option across user's 2 stores
 ✓ 2-store split option only appears when savings >= $3
 ✓ Shopping list generates correctly for a full week plan
 ✓ Checking off an item persists (survives app restart)
-✓ Prices load within 5s (Redis cache hit: <500ms, API miss: <5s)
-✓ If MealMe returns no data for a store, graceful fallback shown
+✓ Prices load within 5s (Redis cache hit: <500ms, canonical miss: <2s)
+✓ Graceful "scan to unlock" state shown when no community data exists for a store
 ```
 
 ---
 
-### Sprint 4 — "I can save recipes I love and organise them"
-**Duration:** Week 7
+### Sprint 4 — "I scan items, build the community price database, manage my pantry, and the app remembers what I buy"
+**Duration:** Week 7–8
+**Deliverable:** Open the scanner from the shopping list. Scan a barcode → product identified → confirm price + quantity → item checked off + Bites awarded. Every check-off (scan or manual) syncs into your Pantry. The Pantry tab shows everything you have at home. Mark a recipe as cooked → the app deducts the ingredients used from your pantry automatically. Shopping list shows "Last bought: 2 lb @ HEB" for previously purchased items.
+
+**What you can demo:**
+- Shopping list → camera icon → scanner opens
+- Point camera at any grocery barcode → product identified within 2s
+- Price + quantity confirmation screen — confirm shelf price and how much you bought
+- Submit → item checked off + celebration screen (confetti, Bites counter, community impact)
+- Shopping list items with purchase history badge: "Last bought: 2 lb @ HEB"
+- Checking off without scanning also prompts quantity confirmation
+- Pantry tab — list of all current pantry items with quantities
+- Manually add an item to pantry (e.g. "olive oil — 16 oz")
+- Recipe detail → "Mark as Cooked" → servings picker → pantry deduction preview → confirm
+- Pantry updates reflect deducted ingredients after cooking
+- Rewards tab (5th nav item) — Bites balance, streak flame, badges, leaderboard
+
+**Backend tasks:**
+- [ ] `GET /products/lookup/:upc` — Open Food Facts → USDA → Product table cache
+- [ ] `POST /prices/observation` — write scan to `PriceObservation`, trigger canonical recompute
+- [ ] `processScanReward` service — base + pioneer + stale + streak Bites logic
+- [ ] Canonical price recompute job (BullMQ) — weighted median from last 7 days of observations
+- [ ] `POST /purchases` — record a purchase; auto-calls `POST /pantry/sync-purchase`
+- [ ] `GET /purchases?ingredientName=` — purchase history for a specific ingredient
+- [ ] `GET /shopping-list/:planId` updated — include `lastPurchase` per ingredient
+- [ ] Pantry CRUD — `GET/POST/PUT/DELETE /pantry`
+- [ ] `POST /pantry/sync-purchase` — add purchased quantity to pantry item (upsert + ledger entry)
+- [ ] `GET /pantry/check?ingredients=` — coverage check for recipe detail
+- [ ] `POST /recipes/:id/cooked` — scale + deduct ingredients, write ledger, increment timesCooked
+- [ ] `GET /rewards/balance`, `/rewards/ledger`, `/rewards/leaderboard`, `/rewards/badges`
+- [ ] `GET /community/impact` — aggregate savings stats, cached hourly per city
+
+**Mobile tasks:**
+- [ ] Scanner screen — Vision Camera + ML Kit barcode scanning
+- [ ] Product confirm screen — name, image, price input, quantity input, store shown
+- [ ] Celebration screen — confetti, animated Bites counter, community impact line
+- [ ] Shopping list: check-off flow prompts quantity + store confirmation (scan or manual)
+- [ ] Shopping list: "Last bought: X unit @ store" badge per ingredient
+- [ ] Pantry tab (accessible from tab bar or profile)
+- [ ] `PantryList` component — grouped/sorted pantry items with quantity chips
+- [ ] `PantryItemEditor` — add/edit item (name, quantity, unit, notes)
+- [ ] Recipe detail: "Mark as Cooked" button → servings picker → pantry deduction preview sheet → confirm
+- [ ] Post-cook confirmation: shows what was deducted + what was missing from pantry
+- [ ] Rewards tab (5th nav item)
+- [ ] Balance card, streak flame, progress bars, badge grid, leaderboard
+
+**Definition of done:**
+```
+✓ Scanner opens on physical device (camera required)
+✓ Barcode scan → product identified → writes PriceObservation + PurchaseHistory + PantryItem
+✓ Bites awarded correctly — verify in DB
+✓ Shopping list shows "Last bought" for ingredients with purchase history
+✓ Check-off without scan still prompts quantity capture
+✓ Pantry tab shows all items with correct quantities
+✓ Manually adding a pantry item persists and appears immediately
+✓ Marking a recipe as cooked deducts ingredients from pantry (verify in DB)
+✓ Ingredients not in pantry are listed as "missing" in post-cook summary
+✓ Pantry quantity for a purchase is incremented correctly via sync-purchase
+✓ Rewards tab shows correct balance, streak, and leaderboard position
+```
+
+---
+
+### Sprint 5 — "The app learns my taste, shows me price trends, and tells me when to stock up"
+**Duration:** Week 9
+**Deliverable:** Generate a new meal plan after having saved recipes — it visibly
+reflects your preferences. On any ingredient or recipe, tap "Price Trend" to see a
+chart of community-reported prices over time with an AI-generated suggestion:
+"Chicken breast is up 12% this week — consider substituting thighs or buying now while
+it's under $3/lb." Shopping lists highlight ingredients that are cheaper than usual
+(green arrow) or more expensive (red arrow). Price drop alerts notify you when a
+recipe's total cost drops to your target.
+
+**What you can demo:**
+- Generate plan after 5+ saves → meals visibly reflect your taste preferences
+- Each meal card shows "Personalised for you" tag (Plus/Pro)
+- Tap an ingredient on the shopping list → price trend chart (7/30/90-day)
+- AI suggestion card below chart: buy-more / buy-less / substitute recommendation
+- Price trend indicators on shopping list rows: ↑ up, ↓ down, → stable vs last week
+- "You bought 2 lb last time — add same amount?" pre-fill from purchase history
+- Set a price drop alert on any recipe (Plus gate for free users)
+- Simulated push notification: "Salmon is now $8.99/lb at Kroger — you set an alert at $9"
+
+**Backend tasks:**
+- [ ] Favourites summary builder — extract taste patterns from saved recipes
+- [ ] Updated Claude `generateMealPlan` prompt — inject favourites + purchase history context for Plus/Pro
+- [ ] BullMQ + Redis setup for background jobs (if not already from Sprint 4)
+- [ ] `priceTrendService` — aggregate `PriceObservation` history into weekly buckets per (ingredientName, storeId)
+- [ ] `GET /prices/trends?ingredient=&storeId=&days=` — returns bucketed trend data (Pro gate)
+- [ ] `GET /prices/suggestion?ingredient=&storeId=` — calls Claude with trend data, returns natural-language suggestion (Pro gate)
+- [ ] Price polling job — runs every 6h, checks canonical price against alert target
+- [ ] `POST /prices/alert`, `GET /prices/alerts`, `DELETE /prices/alerts/:id`
+- [ ] Push notification service (Expo Notifications)
+- [ ] Shopping list response enriched with `trendDirection: 'up' | 'down' | 'stable'` per ingredient
+- [ ] Purchase reminders CRUD — `GET/POST/PUT/DELETE /reminders` (Pro gate)
+- [ ] `GET /reminders/suggestions` — Claude habit learning: pass purchase history per item, get structured suggestions with reasoning (Pro gate); rule-based fallback below 3-purchase threshold
+- [ ] Daily reminder job (BullMQ cron) — query `PurchaseReminder` where `nextRemindAt <= now AND active = true`, fire push notification, update `lastRemindedAt` + `nextRemindAt`
+
+**Mobile tasks:**
+- [ ] "Personalised for you" tag on meal cards (Plus/Pro only)
+- [ ] "Why this?" explanation bottom sheet
+- [ ] Price trend chart screen — line chart with 7/30/90-day toggle
+- [ ] AI suggestion card below trend chart (Plus/Pro — upgrade prompt for free)
+- [ ] Trend indicator arrows on shopping list rows (↑ ↓ →)
+- [ ] "Last bought X — add same?" pre-fill on shopping list quantity
+- [ ] Price alert UI on recipe detail — set target price, view active alerts
+- [ ] Notification permission request flow
+- [ ] Alert triggered notification deep-link → recipe detail
+- [ ] Reminders screen (within Profile or standalone) — list active reminders, add/edit/delete
+- [ ] `ReminderCard` component — ingredient name, quantity, unit, frequency chip, next-due date
+- [ ] `ReminderEditor` bottom sheet — name input, quantity + unit pickers, frequency picker (daily / every 3d / weekly / every 2w / monthly / custom N days)
+- [ ] `GET /reminders/suggestions` surfaced as "Add suggested reminders" banner when ≥1 suggestion exists (Pro gate prompt for free/Plus users)
+
+**Definition of done:**
+```
+✓ Plan generated after 5+ saves is noticeably different from the cold-start plan
+✓ "Why this?" sheet shows a coherent personalised explanation (not generic text)
+✓ Price trend chart loads for any ingredient with >= 3 community observations
+✓ AI suggestion is coherent and references the actual trend direction
+✓ Free user sees upgrade prompt when tapping AI suggestion (Plus gate)
+✓ Shopping list shows ↑/↓/→ trend indicators for ingredients with trend data
+✓ "Last bought" pre-fill appears for ingredients in purchase history
+✓ Price alert can be created, appears in active alerts list, and fires a push notification
+✓ Background price polling job runs without crashing (verify in Railway/Fly logs)
+✓ Pro user can create a purchase reminder with custom frequency + quantity
+✓ Daily reminder job fires a push notification when nextRemindAt is reached (verify in logs)
+✓ nextRemindAt advances correctly after notification fires
+✓ /reminders/suggestions returns items detected from PurchaseHistory patterns (≥3 purchases)
+✓ Non-Pro user sees upgrade prompt when tapping "Set reminder"
+```
+
+---
+
+### Sprint 6 — "I can save recipes I love and organise them"
+**Duration:** Week 10
 **Deliverable:** Heart any recipe to save it. Open the Saved tab and see all
 favourites organised into collections. Sort by most cooked or most recent.
 Add personal notes and a rating to any saved recipe. One-tap to re-add a
@@ -1004,57 +1484,19 @@ favourite to this week's plan.
 
 ---
 
-### Sprint 5 — "The app knows my taste and the plan gets smarter"
-**Duration:** Week 8
-**Deliverable:** Generate a new meal plan after having saved and rated recipes.
-The new plan visibly reflects your preferences — cuisine types, cook times,
-dishes similar to your 5-star ratings. A "Why this?" label on each meal card
-explains the personalisation. Price drop alerts can be set on any recipe.
-
-**What you can demo:**
-- Generate plan → meals reflect saved recipe patterns (visible improvement)
-- Each meal card shows a small "Personalised for you" tag
-- Tap tag → "Why this?" sheet explaining the match
-- Set a price alert on a recipe (Plus gate shown to free users)
-- Demo a simulated price drop push notification
-
-**Backend tasks:**
-- [ ] Favourites summary builder — extract taste patterns from saved recipes
-- [ ] Updated Claude prompt — inject favourites context for Plus/Pro users
-- [ ] BullMQ + Redis setup for background jobs
-- [ ] Price polling job — runs every 6h, checks canonical + MealMe against alert target
-- [ ] `POST /prices/alert`, `GET /prices/alerts`, `DELETE /prices/alerts/:id`
-- [ ] Push notification service (Expo Notifications)
-
-**Mobile tasks:**
-- [ ] "Personalised" tag on meal cards (Plus/Pro only)
-- [ ] "Why this?" explanation bottom sheet
-- [ ] Price alert UI on recipe detail — set target price, view active alerts
-- [ ] Notification permission request flow
-- [ ] Alert triggered screen / notification deep-link
-
-**Definition of done:**
-```
-✓ Plan generated after 5+ saves is noticeably different from the first plan
-✓ "Why this?" sheet shows a coherent explanation (not generic text)
-✓ Price alert can be created and appears in active alerts list
-✓ Free user sees upgrade prompt when tapping "Set alert"
-✓ Simulated alert push notification opens the correct recipe
-✓ Background job runs without crashing (verify in Railway/Fly logs)
-```
-
----
-
-### Sprint 6 — "I can subscribe and unlock everything"
-**Duration:** Week 9
+### Sprint 7 — "I can subscribe and unlock everything"
+**Duration:** Week 11
 **Deliverable:** Full paywall flow working end-to-end on a physical device.
-Free user hits a gate → sees upgrade prompt → taps upgrade → completes
-purchase in sandbox → tier updates instantly → gated features unlock without
-restarting the app.
+New users get a 7-day Pro trial on signup. Free user hits a gate → sees
+upgrade prompt → taps upgrade → completes purchase in sandbox → tier updates
+instantly → gated features unlock without restarting the app.
 
 **What you can demo:**
-- Free user exhausts 2 weekly plans → gate prompt appears
-- Tap "Upgrade to Plus" → RevenueCat paywall sheet
+- New user signs up → automatically enters 7-day Pro trial → banner shows "Pro Trial — X days left"
+- Trial user can use all Pro features (trends, AI suggestions, reminders, unlimited plans)
+- Trial expires → graceful downgrade to Free, upgrade prompt appears
+- Free user exhausts 2 weekly plans → gate prompt with "You had Pro for free — get it back for $9.99/mo"
+- Tap "Upgrade to Plus/Pro" → RevenueCat paywall sheet
 - Complete sandbox purchase on device
 - Return to app — tier updates, gates lift, counter resets
 - Profile screen shows active subscription + renewal date
@@ -1062,72 +1504,36 @@ restarting the app.
 
 **Backend tasks:**
 - [ ] RevenueCat webhook handler — verify signature, update `user.tier`
-- [ ] `GET /subscription/status` — current tier, limits, renewal date
+- [ ] `GET /subscription/status` — current tier, limits, renewal date, trial status
 - [ ] All tier gates wired to live DB tier (not hardcoded)
+- [ ] Trial grant on signup — set `trialEndsAt = now + 7 days`, `tier = PRO` on `POST /auth/signup`
+- [ ] Trial expiry job (BullMQ, daily cron) — downgrade users where `trialEndsAt < now AND hasActiveSubscription = false`
+- [ ] `POST /subscription/sync` — recognise RevenueCat trial entitlement (`is_trial_period`) and map to `PRO` tier; recognise expiry and downgrade
 
 **Mobile tasks:**
-- [ ] RevenueCat SDK configured with products
-- [ ] `TierGatePrompt` component — contextual upgrade prompt per gate
-- [ ] Paywall screen — 3-tier comparison (Free / Plus / Pro)
+- [ ] RevenueCat SDK configured with products + introductory offer (7-day free trial on Pro SKU)
+- [ ] Trial banner — "Pro Trial · X days left" shown in header during trial
+- [ ] `TierGatePrompt` component — contextual upgrade prompt per gate; includes "You had Pro free" framing post-trial
+- [ ] Paywall screen — 3-tier comparison (Free / Plus / Pro) with "Start 7-day free trial" CTA on Pro
 - [ ] Purchase success animation + tier update without app restart
-- [ ] Profile subscription card — tier badge, renewal date, manage link
+- [ ] Profile subscription card — tier badge, trial end date (during trial) / renewal date (post-purchase), manage link
 - [ ] Restore purchases flow
+- [ ] Day-6 trial reminder push notification: "Your Pro trial ends tomorrow — keep your meal planning streak going"
 
 **Definition of done:**
 ```
+✓ New user signup automatically grants 7-day Pro trial
+✓ Trial banner shows correct days remaining throughout trial
+✓ All Pro features accessible during trial (trends, AI suggestions, reminders)
+✓ Trial expiry downgrades user to Free without data loss
+✓ Upgrade prompt post-trial references the trial experience
 ✓ Sandbox purchase completes successfully on physical iOS or Android device
 ✓ User tier updates within 5s of purchase completion (webhook received)
 ✓ Gated features unlock immediately after purchase (no restart)
-✓ Profile screen shows correct tier and renewal date
+✓ Profile screen shows correct tier and renewal/trial-end date
 ✓ Restore purchases correctly identifies existing entitlement
-✓ Free tier gates fire at correct thresholds (2 plans/week, 1 store, 10 favourites)
-```
-
----
-
-### Sprint 7 — "I can scan items and earn rewards"
-**Duration:** Week 10–11
-**Deliverable:** Open the scanner from the shopping list screen. Scan a real
-grocery barcode. App identifies the product and shows the price you're paying.
-Confirm the price. Bites are awarded with the celebration screen. Open the
-Rewards tab and see your balance, streak, badges, and the community leaderboard.
-
-**What you can demo:**
-- Shopping list → camera icon → scanner opens
-- Point camera at any grocery barcode → product identified within 2s
-- Price confirmation screen — verify the shelf price
-- Submit → celebration screen with confetti, Bites counter animating up, breakdown
-- Community impact line: "Your scans helped X families save $Y this month"
-- Rewards tab — balance, streak flame, progress bars, badges, leaderboard
-
-**Backend tasks:**
-- [ ] `GET /products/lookup/:upc` — Open Food Facts → USDA → Product table cache
-- [ ] `POST /prices/observation` — write scan, trigger canonical recompute
-- [ ] `processScanReward` service — base + pioneer + stale + streak logic
-- [ ] Canonical price recompute job (BullMQ)
-- [ ] `GET /rewards/balance`, `/rewards/ledger`, `/rewards/leaderboard`, `/rewards/badges`
-- [ ] `GET /community/impact` — cached hourly per city
-
-**Mobile tasks:**
-- [ ] Scanner screen — Vision Camera + ML Kit barcode scanning
-- [ ] Product confirm screen — name, image, price input, store shown
-- [ ] Celebration screen — confetti, animated Bites counter, breakdown, community line
-- [ ] Rewards tab (5th nav item — replace or add)
-- [ ] Balance card with streak flame
-- [ ] Progress bars (weekly goal, next badge threshold)
-- [ ] Badge grid (earned + locked)
-- [ ] Neighbourhood leaderboard
-
-**Definition of done:**
-```
-✓ Scanner opens on physical device (not just simulator — camera required)
-✓ Real grocery barcode scanned and product identified correctly
-✓ Price confirmation screen pre-fills product name and store
-✓ Submission writes to PriceObservation table (verify in DB)
-✓ Bites awarded correctly (base + any applicable bonuses)
-✓ Celebration screen animates Bites counter from 0 to earned amount
-✓ Rewards tab shows correct balance and streak
-✓ Leaderboard shows at least the current user's position
+✓ Day-6 trial reminder push notification fires correctly
+✓ Second signup with same email cannot claim a second trial (hasUsedTrial guard)
 ```
 
 ---
@@ -1145,7 +1551,7 @@ Rate limiting, analytics, and error reporting active.
 - Subscription purchase working in production (not sandbox)
 
 **Tasks:**
-- [ ] Production API keys for all services (MealMe, Kroger, Anthropic, RevenueCat)
+- [ ] Production API keys for all services (Anthropic, Spoonacular, Edamam, RevenueCat)
 - [ ] Rate limiting audit — confirm all endpoints added in Sprints 1–7 have limits applied (endpoint limits are set per-sprint; this sprint audits coverage)
 - [ ] PostHog analytics — key events tracked (plan generated, recipe saved, scan submitted, subscription purchased)
 - [ ] Sentry error reporting — mobile + API
@@ -1172,69 +1578,54 @@ Rate limiting, analytics, and error reporting active.
 
 ## Cost control strategies
 
-- **Cache price scans in Redis for 1 hour** — don't re-query MealMe if the user refreshes
+- **Cache canonical price lookups in Redis for 1 hour** — avoid repeated DB scans on ingredient lookups
 - **Cache Spoonacular recipe data** — recipe content doesn't change; cache indefinitely
 - **Batch Claude token usage** — generate a full 7-day plan in one API call, not 21 separate calls
 - **Rate-limit free users at the API level** — enforce `mealPlansPerWeek` counter in Redis, not just DB
-- **Use Spoonacular for recipe lookup, Claude only for personalisation** — Spoonacular is cheaper per call than generating from scratch
-- **Zyte scraper: post-V1 only** — not used in the Texas launch. MealMe + Kroger API cover all 6 V1 chains. Reserved for national expansion where store coverage gaps appear.
+- **Gate Claude price suggestions to Plus tier** — each `/prices/suggestion` call is an Anthropic API cost
+- **Use Spoonacular for recipe lookup, Claude only for personalisation + suggestions** — cheaper per call
 
 ---
 
-## Store selection logic (updated)
+## Store selection logic
 
 ### User store preferences
-Users select up to **2 preferred stores** (not unlimited). This is enforced in the UI and stored as `maxStores: 1 | 2` in the user profile.
+Users select **any number of stores** from `TX_GROCERY_STORES` (all TX chains).
+Stored as `preferredRetailers: string[]` (chain keys) in `UserProfile`. No cap.
+`maxStores` field has been removed — it was only needed to limit API call costs.
 
-*(These fields — `maxStores`, `preferredRetailers`, `locationRadius` — are now part of the canonical `UserProfile` model in the Prisma schema. No additions needed.)*
+### Store onboarding UX
+- Searchable dropdown backed by static `TX_GROCERY_STORES` — no API call required
+- Users can add/remove stores any time from Profile → Stores
+- No location-based sort needed (stores are chains, not specific locations)
 
-### Location-aware store discovery
-On onboarding (and whenever user location shifts >5 miles), query nearby stores:
-
-```typescript
-// src/services/storeDiscoveryService.ts
-export async function getNearbyStores(lat: number, lng: number, radiusMiles = 10) {
-  // 1. Query MealMe store search endpoint with lat/lng
-  // 2. Augment with Google Places API for stores not in MealMe
-  // 3. Return sorted by distance, max 12 results
-  // 4. Cache result in Redis for 24h per location hash
-}
-```
-
-### Price scan output shape
-`scanPrices` now returns both single-store and split options:
+### Price scan output shape (community-sourced)
+`scanPrices` queries `CanonicalPrice` for each of the user's selected store chains:
 
 ```typescript
 interface ScanResult {
   bestSingleStore: {
     storeName: string
-    storeId: string
     totalCost: number
-    distanceMiles: number
     items: IngredientPrice[]
+    hasData: boolean           // false = store has no community scans yet for these ingredients
   }
   bestSplitOption: {
     totalCost: number
-    savings: number            // vs bestSingleStore.totalCost
+    savings: number
     worthSplitting: boolean    // true only if savings >= SPLIT_THRESHOLD ($3)
-    stores: {
-      storeName: string
-      storeId: string
-      distanceMiles: number
-      subtotal: number
-      items: IngredientPrice[]
-    }[]
-  } | null                     // null if user has only 1 store selected
+    stores: { storeName: string; subtotal: number; items: IngredientPrice[] }[]
+  } | null
 }
 
-const SPLIT_THRESHOLD = 3.00  // only surface split if it saves >= $3
+const SPLIT_THRESHOLD = 3.00
 ```
 
 ### Split optimizer algorithm
 ```typescript
 function computeBestSplit(stores: StoreResult[]): SplitOption {
   // Greedy per-ingredient assignment:
-  // For each ingredient, assign to whichever store has the lower price
+  // For each ingredient, assign to whichever store has the lower community price
   // Then compare total vs best single store
   // Only return split if savings >= SPLIT_THRESHOLD
 }
@@ -1242,16 +1633,16 @@ function computeBestSplit(stores: StoreResult[]): SplitOption {
 
 ---
 
-## Stretch goal — Barcode scanner + crowdsourced pricing
+## Barcode scanner + crowdsourced pricing — Sprint 4 core feature
 
-> **Status: Future iteration (v2). Lay groundwork now, build later.**
-> Do NOT build the camera UI in v1. DO add the DB models and API endpoint so data
-> can be accepted the moment the scanner is ready.
+> **Status: Sprint 4 — this IS the product.** MealMe API was deprecated.
+> Community scan data is now the PRIMARY pricing source. The scanner is not a stretch
+> goal; it is the engine that makes prices work for every store except Kroger.
 
 ### Why this matters
 Every user scan is a real, timestamped price observation at a specific store. Over time
 this becomes a proprietary pricing database that is more local and more accurate than
-MealMe/Kroger APIs — and eliminates API costs at scale.
+any third-party API — and eliminates third-party API costs at scale.
 
 ### Two features, one scan action
 1. **Shopping list completion** — scan a barcode → match to item on list → check it off
@@ -1283,51 +1674,80 @@ Add to `app.json` (required for camera permissions):
 ### New Prisma models (add in Sprint 1, do not defer)
 
 ```prisma
+// ── Item catalog ─────────────────────────────────────────────────────────────
+// Generic item/product catalog. Not grocery-only — designed to extend to fuel,
+// home improvement, household goods, and any other scannable category in V2+.
+
+model Item {
+  id              String       @id @default(cuid())
+  name            String       // normalised name (e.g. "Dozen Eggs", "87 Octane Gas", "2x4 Lumber 8ft")
+  category        ItemCategory // GROCERY | FUEL | HOME_IMPROVEMENT | HOUSEHOLD | PERSONAL_CARE | OTHER
+  subcategory     String?      // free-form: "dairy", "produce", "fasteners", "engine fuel"
+  upc             String?      @unique  // barcode — null for fuel, bulk items, etc.
+  brand           String?
+  defaultUnit     String       // "each", "gallon", "lb", "oz", "sheet", etc.
+  unitSize        String?      // "1 dozen", "16 oz", "8 ft"
+  imageUrl        String?
+  source          String       // "open_food_facts" | "usda" | "user_submitted" | "manual"
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  priceObservations PriceObservation[]
+  canonicalPrices   CanonicalPrice[]
+  purchaseHistory   PurchaseHistory[]
+  pantryItems       PantryItem[]
+  reminders         PurchaseReminder[]
+}
+
+enum ItemCategory {
+  GROCERY          // food + beverages — V1 primary
+  FUEL             // gas stations — V2
+  HOME_IMPROVEMENT // hardware, lumber, tools — V2
+  HOUSEHOLD        // cleaning, paper goods — V2
+  PERSONAL_CARE    // pharmacy, beauty — V2
+  PET_SUPPLIES     // V2
+  OTHER            // catch-all for future expansion
+}
+
 model PriceObservation {
   id              String   @id @default(cuid())
-  upc             String                        // barcode
-  productName     String?                       // from Open Food Facts lookup
+  itemId          String?                       // FK to Item — null only for legacy rows
+  item            Item?    @relation(fields: [itemId], references: [id])
+  itemName        String                        // denormalised for query perf + legacy compat
+  upc             String?                       // barcode (null for fuel pump scans etc.)
   storeId         String
   storeName       String
-  storeLocation   Json                          // { lat, lng, address }
+  storeLocation   Json                          // { lat, lng, address, city, state }
   price           Float
-  unitSize        String?                       // "16oz", "1lb", etc
-  unitPrice       Float?                        // price / unitSize for comparison
+  unitSize        String?                       // "16oz", "1lb", "per gallon", etc.
+  unitPrice       Float?                        // price / unitSize for cross-size comparison
   userId          String
   user            User     @relation(fields: [userId], references: [id])
   scannedAt       DateTime @default(now())
   confidence      Float    @default(1.0)        // 0-1, decays with age
-  verified        Boolean  @default(false)      // true if matches other users' scans
-  
+  verified        Boolean  @default(false)      // true if corroborated by another user's scan
+
+  @@index([itemId, storeId])
   @@index([upc, storeId])
   @@index([storeId, scannedAt])
 }
 
 model CanonicalPrice {
-  id              String   @id @default(cuid())
-  upc             String
-  storeId         String
-  storeName       String
-  weightedPrice   Float                         // computed median from observations
+  id               String   @id @default(cuid())
+  itemId           String?                      // FK to Item
+  item             Item?    @relation(fields: [itemId], references: [id])
+  itemName         String                       // denormalised
+  upc              String?
+  storeId          String
+  storeName        String
+  weightedPrice    Float                        // computed weighted median from observations
   observationCount Int
-  lastUpdated     DateTime @updatedAt
-  staleBefore     DateTime                      // observations older than this ignored
-  
-  @@unique([upc, storeId])
-  @@index([upc])
-}
+  lastUpdated      DateTime @updatedAt
+  staleBefore      DateTime                     // observations older than this are ignored
 
-model Product {
-  id              String   @id @default(cuid())
-  upc             String   @unique
-  name            String
-  brand           String?
-  category        String?
-  imageUrl        String?
-  unitSize        String?
-  source          String   // "open_food_facts" | "usda" | "user_submitted"
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  @@unique([itemId, storeId])
+  @@index([itemId])
+  @@index([upc, storeId])                       // backward compat lookup by UPC
 }
 ```
 
@@ -1397,18 +1817,274 @@ export async function recomputeCanonicalPrice(upc: string, storeId: string) {
 }
 ```
 
+### Price reconciliation — how conflicting community reports are resolved
+
+Multiple users reporting different prices for the same item at the same store is expected
+and not inherently a data problem. The reconciliation layer must distinguish between
+legitimate causes (price changed, sale running, different store location) and noise
+(user error, bad actor).
+
+#### Why prices legitimately differ
+
+| Cause | How to detect |
+|---|---|
+| Price actually changed | Two tight price clusters separated by time |
+| Sale / promo pricing | Price >20% below canonical, short window, few reporters |
+| Unit size confusion | `unitPrice` (price-per-unit) differs but raw price doesn't |
+| Store-location variance | `storeLocation.lat/lng` clusters differ within same chain |
+| User error / bad actor | Observation is a statistical outlier across all clusters |
+
+#### Algorithm: enhanced weighted median with cluster detection
+
+```typescript
+// src/jobs/canonicalPriceJob.ts
+
+async function recomputeCanonicalPrice(itemId: string, storeId: string) {
+  const cutoff = subDays(new Date(), 7)
+  const observations = await prisma.priceObservation.findMany({
+    where: { itemId, storeId, scannedAt: { gte: cutoff }, quarantined: false },
+    include: { user: { include: { profile: true } } },
+    orderBy: { scannedAt: 'desc' },
+  })
+  if (observations.length < 3) return
+
+  // 1. Detect clusters — if gap between sorted prices exceeds 15% of median,
+  //    treat as a price-change event rather than conflicting data
+  const sorted = [...observations].sort((a, b) => a.price - b.price)
+  const median = sorted[Math.floor(sorted.length / 2)].price
+  const clusters = detectClusters(sorted, median * 0.15)
+
+  // 2. If multiple clusters: newer cluster is canonical, older is previousPrice
+  const activeCluster = clusters.sort((a, b) =>
+    b.latestScan.getTime() - a.latestScan.getTime()
+  )[0]
+  const previousCluster = clusters[1] ?? null
+
+  // 3. Within active cluster: weighted median using recency + contributorScore
+  const weightedMedian = computeWeightedMedian(
+    activeCluster.observations.map((obs, i) => ({
+      price: obs.price,
+      weight: Math.pow(0.9, i) * (obs.user.profile?.contributorScore ?? 1.0),
+    }))
+  )
+
+  // 4. Sale detection — if active cluster is >20% below 30-day baseline
+  //    and has < 3 corroborated observations, flag as SALE not canonical
+  const baseline = await get30DayBaseline(itemId, storeId)
+  const isSale = baseline && weightedMedian < baseline * 0.80
+    && activeCluster.observations.filter(o => o.verified).length < 3
+
+  // 5. Compute variance band for low-confidence display
+  const prices = activeCluster.observations.map(o => o.price).sort((a, b) => a - b)
+  const p25 = prices[Math.floor(prices.length * 0.25)]
+  const p75 = prices[Math.floor(prices.length * 0.75)]
+
+  await prisma.canonicalPrice.upsert({
+    where: { itemId_storeId: { itemId, storeId } },
+    update: {
+      weightedPrice:      weightedMedian,
+      observationCount:   activeCluster.observations.length,
+      priceTag:           isSale ? 'SALE' : 'REGULAR',
+      previousPrice:      previousCluster ? computeWeightedMedian(previousCluster.observations.map(o => ({ price: o.price, weight: 1 }))) : null,
+      previousPriceUntil: previousCluster ? activeCluster.observations[activeCluster.observations.length - 1].scannedAt : null,
+      varianceP25:        p25,
+      varianceP75:        p75,
+      staleBefore:        cutoff,
+    },
+    create: { itemId, storeId, storeName: observations[0].storeName, weightedPrice: weightedMedian,
+      observationCount: activeCluster.observations.length, priceTag: isSale ? 'SALE' : 'REGULAR',
+      varianceP25: p25, varianceP75: p75, staleBefore: cutoff },
+  })
+}
+
+function detectClusters(
+  sorted: PriceObservation[],
+  gapThreshold: number
+): Cluster[] {
+  const clusters: Cluster[] = []
+  let current: PriceObservation[] = [sorted[0]]
+
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i].price - sorted[i - 1].price > gapThreshold) {
+      clusters.push({ observations: current, latestScan: current[0].scannedAt })
+      current = []
+    }
+    current.push(sorted[i])
+  }
+  clusters.push({ observations: current, latestScan: current[0].scannedAt })
+  return clusters
+}
+```
+
+#### Outlier quarantine
+
+Observations outside 2 standard deviations from the active cluster median are marked
+`quarantined = true`. They are excluded from canonical calculations but **never deleted**:
+
+- If the cluster later shifts toward a quarantined value, it may represent an early
+  scan of a genuine price change — it gets unquarantined and reprocessed
+- Repeatedly quarantined observations from the same user reduce their `contributorScore`
+
+```typescript
+async function quarantineOutliers(observations: PriceObservation[], clusterMedian: number) {
+  const stdDev = computeStdDev(observations.map(o => o.price))
+  for (const obs of observations) {
+    if (Math.abs(obs.price - clusterMedian) > 2 * stdDev) {
+      await prisma.priceObservation.update({
+        where: { id: obs.id },
+        data: { quarantined: true },
+      })
+      // Penalise contributorScore slightly for consistently quarantined users
+      await adjustContributorScore(obs.userId, -0.05)
+    }
+  }
+}
+```
+
+#### Corroboration — the accuracy incentive
+
+When a second user scans the same item at the same store within **48 hours** and their
+price is within **10%** of the first scan, both observations are marked `verified = true`
+and earn the +3 Bites verification bonus. Verified observations carry **2× weight**
+in the median calculation.
+
+```typescript
+async function checkCorroboration(newObs: PriceObservation) {
+  const window = subHours(new Date(), 48)
+  const nearby = await prisma.priceObservation.findFirst({
+    where: {
+      itemId:   newObs.itemId,
+      storeId:  newObs.storeId,
+      scannedAt: { gte: window },
+      userId:   { not: newObs.userId },
+      quarantined: false,
+    },
+  })
+  if (!nearby) return
+
+  const priceDiff = Math.abs(newObs.price - nearby.price) / nearby.price
+  if (priceDiff <= 0.10) {
+    await prisma.priceObservation.updateMany({
+      where: { id: { in: [newObs.id, nearby.id] } },
+      data: { verified: true },
+    })
+    await awardBites(newObs.userId,  3, BitesReason.VERIFIED_SCAN, newObs.id)
+    await awardBites(nearby.userId,  3, BitesReason.VERIFIED_SCAN, nearby.id)
+  }
+}
+```
+
+#### User credibility scoring
+
+`contributorScore` lives on `UserProfile` (default `1.0`). It is the weight multiplier
+applied to a user's scans in the canonical median calculation.
+
+| Event | Adjustment |
+|---|---|
+| Scan corroborated within 48h | +0.10 (capped at 3.0) |
+| Scan matches existing canonical within 5% | +0.02 |
+| Scan quarantined as outlier | -0.05 |
+| 10+ consecutive quarantined scans | Flag for manual review, hold Bites |
+
+Score never goes below 0.1 — everyone's scans still count, just with reduced weight.
+This prevents gaming while keeping the bar for contribution low.
+
+#### What the UI displays — confidence-driven format
+
+```typescript
+// src/services/pricingService.ts
+
+function formatPriceDisplay(canonical: CanonicalPrice): PriceDisplay {
+  const ageHours = differenceInHours(new Date(), canonical.lastUpdated)
+  const isVerified = canonical.observationCount >= 5
+  const isRecent   = ageHours < 24
+  const isNarrow   = (canonical.varianceP75 - canonical.varianceP25) / canonical.weightedPrice < 0.08
+
+  if (isVerified && isRecent && isNarrow) {
+    return { label: `~$${canonical.weightedPrice.toFixed(2)}`, confidence: 'high' }
+  }
+  if (canonical.observationCount >= 3) {
+    return { label: `~$${canonical.weightedPrice.toFixed(2)}`, confidence: 'medium' }
+  }
+  // Low confidence — show range instead of false precision
+  return {
+    label: `est. $${canonical.varianceP25?.toFixed(2)}–$${canonical.varianceP75?.toFixed(2)}`,
+    confidence: 'low',
+  }
+}
+
+// Special cases
+// Sale detected:         "~$2.49 (may be on sale)"
+// Price change detected: "Recently changed: was ~$3.99, now ~$4.49"
+// No data:               "Be the first to scan this!"
+```
+
+#### Schema additions required
+
+```prisma
+// Add to PriceObservation:
+quarantined  Boolean   @default(false)  // outlier — excluded from canonical calc
+priceTag     PriceTag  @default(REGULAR)
+
+// Add to CanonicalPrice:
+previousPrice       Float?    // last canonical before detected price change
+previousPriceUntil  DateTime? // when the price change was detected
+priceTag            PriceTag  @default(REGULAR)
+varianceP25         Float?    // 25th percentile — used for low-confidence range display
+varianceP75         Float?    // 75th percentile
+
+enum PriceTag {
+  REGULAR    // normal shelf price
+  SALE       // detected promo — below-threshold, short window, few corroborations
+  MEMBER     // loyalty card price (e.g. Kroger Plus, HEB card)
+  CLEARANCE  // user explicitly flagged
+}
+```
+
+#### Tests required (Sprint 4)
+
+```typescript
+describe('canonicalPriceJob — reconciliation', () => {
+  it('detects two price clusters and uses the newer one as canonical', ...)
+  it('stores the older cluster price as previousPrice', ...)
+  it('quarantines observations > 2 std deviations from cluster median', ...)
+  it('does not delete quarantined observations', ...)
+  it('flags active cluster as SALE when >20% below 30-day baseline with <3 verified', ...)
+  it('applies 2x weight to verified observations in median', ...)
+  it('applies contributorScore as weight multiplier', ...)
+  it('returns low-confidence range display when variance is wide', ...)
+})
+
+describe('checkCorroboration', () => {
+  it('marks both observations verified when price within 10% and within 48h', ...)
+  it('awards +3 Bites to both users on corroboration', ...)
+  it('does not corroborate scans from the same user', ...)
+  it('does not corroborate scans outside 48h window', ...)
+  it('does not corroborate when price diff exceeds 10%', ...)
+})
+
+describe('quarantine + contributorScore', () => {
+  it('reduces contributorScore by 0.05 per quarantined scan', ...)
+  it('never reduces contributorScore below 0.1', ...)
+  it('increases contributorScore by 0.10 on corroboration', ...)
+  it('caps contributorScore at 3.0', ...)
+})
+```
+
 ### Updated price lookup priority (scanPrices service)
 
 ```typescript
 // Priority order for ingredient price lookup:
-// 1. CanonicalPrice table (our crowdsourced DB) — if observationCount >= 3 and not stale
-// 2. MealMe API — if canonical miss
-// 3. Kroger API — if MealMe miss or store not in MealMe
-// 4. Zyte scraper — last resort (post-V1 only, not active in Texas launch)
-// 5. Spoonacular cost estimate — fallback if all else fails
+// 1. CanonicalPrice table (crowdsourced community DB) — if observationCount >= 3 and not stale
+//    → This is the PRIMARY source. The scanner pipeline feeds it.
+// 2. Kroger API — for Kroger stores only (the one chain with a public API)
+// 3. Zyte scraper — last resort (post-V1 only, not active in Texas launch)
+// 4. Spoonacular cost estimate — fallback if all else fails
+// NOTE: MealMe API is DEPRECATED. Do not call it. The mealme.ts client file is retained
+//       but disabled. Remove all queryMealMe() calls from pricingService.ts.
 ```
 
-### Scanner screen (build in v2, file path reserved)
+### Scanner screen (Sprint 4 — core feature)
 
 ```
 apps/mobile/app/scanner/
@@ -1436,11 +2112,11 @@ export async function lookupByUpc(upc: string) {
 }
 ```
 
-### Gamification + rewards system (plant seeds now, build in v2)
+### Gamification + rewards system — Sprint 4 core feature
 
-> **Status: Future iteration (v2). Add DB models and reward logic engine now.**
-> The Bites currency, leaderboard, and badge system are v2 features.
-> The DB schema and earn/spend ledger must be added in Sprint 1.
+> **Status: Sprint 4.** The Bites currency, leaderboard, and badge system are
+> the primary engagement mechanic for driving scan contributions.
+> DB schema and reward logic engine were scaffolded in Sprint 1.
 
 ---
 
@@ -2091,16 +2767,16 @@ describe('GET /auth/me', () => {
 // ✅ Profile tests
 describe('PUT /profile', () => {
   it('saves budget, location, dietary prefs', ...)
-  it('rejects more than 2 preferred retailers', ...)
+  it('accepts any number of preferred retailers from TX_GROCERY_STORES', ...)
+  it('rejects retailer chain keys not in TX_GROCERY_STORES', ...)
   it('returns 401 without auth', ...)
 })
 
 // ✅ Store discovery tests
 describe('GET /stores/nearby', () => {
-  it('returns stores sorted by distance', ...)
-  it('filters to V1_SUPPORTED_CHAINS only', ...)
-  it('returns cached result on second call', ...)
-  it('falls back to TX_STORE_SEED if MealMe returns empty', ...)
+  it('returns the full TX_GROCERY_STORES list', ...)
+  it('filters results by ?q= query param (name or tier)', ...)
+  it('returns stores grouped by tier', ...)
 })
 
 // ✅ Referral tests
@@ -2155,9 +2831,9 @@ describe('scanPrices service', () => {
   it('returns bestSingleStore with lowest total cost', ...)
   it('computes bestSplitOption when savings >= $3', ...)
   it('returns null for bestSplitOption when savings < $3', ...)
-  it('respects storesPerScan tier limit', ...)
   it('serves cached result within 1hr TTL', ...)
-  it('falls back to Kroger API when MealMe returns empty', ...)
+  it('returns hasData: false when no CanonicalPrice entries exist for store', ...)
+  it('returns partial results when some ingredients have community data and others do not', ...)
 })
 
 describe('split optimizer', () => {
@@ -2167,7 +2843,7 @@ describe('split optimizer', () => {
 })
 ```
 
-#### Sprint 4 — Favourites + collections
+#### Sprint 6 — Favourites + collections
 
 ```typescript
 describe('POST /favourites', () => {
@@ -2184,39 +2860,94 @@ describe('Collections', () => {
 })
 ```
 
-#### Sprint 5 — Rewards + referrals
+#### Sprint 5 — Price trends + AI suggestions + personalisation
 
 ```typescript
-describe('rewardsService.processScanReward', () => {
-  it('awards base 5 Bites for any scan', ...)
-  it('awards +15 pioneer bonus for first scan at new store', ...)
-  it('awards +5 stale update bonus when price is 5+ days old', ...)
-  it('does NOT award pioneer bonus for second scan at same store', ...)
-  it('increments user scanCount', ...)
+describe('priceTrendService', () => {
+  it('buckets observations into weekly averages', ...)
+  it('returns empty array for ingredients with no observations', ...)
+  it('respects the days= query param', ...)
 })
 
-describe('streak logic', () => {
-  it('increments streak on consecutive daily scans', ...)
-  it('resets streak if user misses a day', ...)
-  it('awards 25 Bites on 7-day streak milestone', ...)
-  it('does not double-award if user scans twice in same day', ...)
+describe('GET /prices/trends', () => {
+  it('returns bucketed trend data for ingredient with observations', ...)
+  it('returns 403 for free user (Plus gate)', ...)
 })
 
-describe('badge awards', () => {
-  it('awards FIRST_SCAN badge on first observation', ...)
-  it('awards CENTURY badge at 100 scans', ...)
-  it('does not duplicate badges', ...)
+describe('GET /prices/suggestion', () => {
+  // Mock Anthropic — never hit real API in tests
+  beforeEach(() => {
+    jest.spyOn(anthropic.messages, 'create').mockResolvedValue(mockSuggestionResponse)
+  })
+
+  it('returns AI suggestion with buy/hold/substitute recommendation', ...)
+  it('returns 403 for free user (Plus gate)', ...)
+  it('does not call Claude when trend data is insufficient', ...)
+})
+
+describe('shopping list trend enrichment', () => {
+  it('returns trendDirection: "up" when canonical price rose >5% vs prior week', ...)
+  it('returns trendDirection: "down" when price fell >5%', ...)
+  it('returns trendDirection: "stable" within 5% variance', ...)
+  it('returns trendDirection: null when fewer than 2 weeks of data', ...)
+})
+
+describe('AI personalisation in generateMealPlan', () => {
+  it('injects purchase history context for Plus users', ...)
+  it('does not inject favourites for free users', ...)
 })
 ```
 
-#### Sprint 6 — Subscriptions
+#### Sprint 6 — Favourites + collections
+
+```typescript
+describe('POST /favourites', () => {
+  it('saves recipe to user favourites', ...)
+  it('returns 409 if already favourited', ...)
+  it('returns 403 when free user has 10 favourites', ...)
+})
+
+describe('Collections', () => {
+  it('creates collection and adds recipe', ...)
+  it('removes recipe from collection', ...)
+  it('deletes collection with all its recipe associations', ...)
+  it('returns free user collections capped at 1', ...)
+})
+```
+
+#### Sprint 7 — Subscriptions + Free Trial
 
 ```typescript
 describe('POST /subscription/webhook', () => {
   it('upgrades user to PLUS on subscription_started event', ...)
+  it('upgrades user to PRO on subscription_started event', ...)
   it('downgrades user to FREE on subscription_cancelled event', ...)
   it('returns 400 on invalid RevenueCat signature', ...)
   it('is idempotent — same event twice does not double-upgrade', ...)
+})
+
+describe('Free trial — POST /auth/signup', () => {
+  it('grants PRO tier and sets trialEndsAt = now + 7 days on new signup', ...)
+  it('sets hasUsedTrial = true on signup', ...)
+  it('does not grant a second trial if hasUsedTrial is already true', ...)
+})
+
+describe('GET /subscription/status', () => {
+  it('returns isTrial: true and daysRemaining during active trial', ...)
+  it('returns isTrial: false and correct tier after trial expires', ...)
+  it('returns renewalDate when user has active paid subscription', ...)
+})
+
+describe('trialExpiryJob', () => {
+  it('downgrades PRO users with expired trialEndsAt and no subscription', ...)
+  it('does not downgrade PRO users with active RevenueCat subscription', ...)
+  it('sends push notification on trial expiry', ...)
+})
+
+describe('trialEndingReminderJob', () => {
+  it('sends push to users whose trial ends within 24h', ...)
+  it('does not send to users who already have active subscription', ...)
+  it('does not send to users with >24h remaining on trial', ...)
 })
 
 describe('Promo codes', () => {
@@ -2228,7 +2959,7 @@ describe('Promo codes', () => {
 })
 ```
 
-#### Sprint 7 — Scanner
+#### Sprint 4 — Scanner + Community Pricing + Purchase History
 
 ```typescript
 describe('GET /products/lookup/:upc', () => {
@@ -2249,6 +2980,22 @@ describe('canonicalPriceJob', () => {
   it('ignores observations older than 7 days', ...)
   it('upserts CanonicalPrice correctly', ...)
   it('does not run with fewer than 3 observations', ...)
+})
+
+describe('POST /purchases', () => {
+  it('writes purchase to PurchaseHistory with quantity + unit', ...)
+  it('links purchase to planId when provided', ...)
+  it('rejects purchase with missing required fields', ...)
+})
+
+describe('GET /purchases?ingredientName=', () => {
+  it('returns purchase history sorted by purchasedAt desc', ...)
+  it('returns empty array for ingredient with no history', ...)
+})
+
+describe('GET /shopping-list/:planId with purchase history', () => {
+  it('includes lastPurchase for ingredients with history', ...)
+  it('returns null lastPurchase for ingredients never bought', ...)
 })
 ```
 
@@ -2452,11 +3199,11 @@ Then implement the component to make all tests pass.
 |---|---|---|---|
 | S1 | 80% | 60% | Auth and profile are critical paths |
 | S2 | 75% | 60% | Mock Claude — never hit real API |
-| S3 | 75% | 55% | Mock MealMe and Kroger |
-| S4 | 70% | 65% | Favourites logic is pure and testable |
-| S5 | 75% | 60% | Rewards engine must be well tested |
-| S6 | 80% | 60% | Webhook idempotency is critical |
-| S7 | 75% | 55% | Scanner is hard to unit test — lean on E2E |
+| S3 | 75% | 55% | Mock Kroger; graceful degraded state for no-data stores |
+| S4 | 75% | 55% | Scanner hard to unit test — lean on E2E; purchase history is pure and testable |
+| S5 | 75% | 60% | Mock Claude for AI suggestions; price trend logic must be well tested |
+| S6 | 70% | 65% | Favourites logic is pure and testable |
+| S7 | 80% | 60% | Webhook idempotency is critical |
 | S8 | — | E2E | All Detox flows must pass before submission |
 
 ---
@@ -2623,7 +3370,12 @@ export const RATE_LIMITS = {
   'GET /stores/nearby':         { max: 20,  timeWindow: '1 minute' },   // Sprint 1
   'POST /plans/generate':       { max: 10,  timeWindow: '1 hour' },     // Sprint 2 (on top of tier gate)
   'GET /prices/scan':           { max: 30,  timeWindow: '1 minute' },   // Sprint 3
-  'POST /prices/observation':   { max: 50,  timeWindow: '24 hours' },   // Sprint 7 (per user, scan spam)
+  'POST /prices/observation':   { max: 50,  timeWindow: '24 hours' },   // Sprint 4 (per user, scan spam)
+  'POST /purchases':            { max: 100, timeWindow: '24 hours' },   // Sprint 4 (purchase history)
+  'GET /prices/trends':         { max: 60,  timeWindow: '1 minute' },   // Sprint 5
+  'GET /prices/suggestion':     { max: 20,  timeWindow: '1 hour' },     // Sprint 5 (Claude call — expensive)
+  'POST /reminders':            { max: 50,  timeWindow: '1 hour' },     // Sprint 5
+  'GET /reminders/suggestions': { max: 10,  timeWindow: '1 hour' },     // Sprint 5
   'POST /referral/attribute':   { max: 3,   timeWindow: '1 hour' },     // Sprint 6 (referral farming)
   'POST /promo/redeem':         { max: 5,   timeWindow: '1 hour' },     // Sprint 6
   'POST /auth/signup' :         { max: 3,   timeWindow: '1 hour' },     // referral farming via bulk signups
@@ -2701,31 +3453,179 @@ model WebhookEvent {
 
 ---
 
-### 6. Operational runbooks
+### 6. Free trial — 7-day Pro trial for new users
+
+> **Every new user gets a 7-day Pro trial on signup.** This is the highest-converting
+> onboarding mechanic for subscription apps. The user experiences the full product
+> ceiling before being asked to pay. Post-trial upgrade prompts reference the trial
+> ("You had Pro free — keep it for $9.99/mo") which dramatically outperforms cold
+> upgrade prompts.
+
+**Why Pro (not Plus) for the trial:**
+- Pro is the ceiling — trends, AI suggestions, reminders, unlimited plans, family profiles
+- Users who experience the best product convert at 2–3× the rate of Plus trial users
+- Plus trial users often feel the step down to Free is acceptable; Pro trial users feel loss aversion
+
+**How it works:**
+
+1. New user completes signup (`POST /auth/signup`) → server sets `trialEndsAt = now + 7 days` and `tier = PRO`
+2. RevenueCat also has a 7-day introductory offer configured on the Pro SKU — the two are in sync
+3. Mobile reads `subscription.status` on launch — shows trial banner if in trial period
+4. Day 6: push notification — "Your Pro trial ends tomorrow. Don't lose your meal planning tools."
+5. Day 7: trial expires → `tier` downgrades to `FREE` (via expiry job or RevenueCat webhook)
+6. Upgrade prompt appears at the next tier gate, framed around the trial
+
+**Schema additions:**
+
+```prisma
+// Add to User model:
+trialEndsAt       DateTime?    // null = no trial / trial not started; set on signup
+hasUsedTrial      Boolean      @default(false)  // prevents second-account gaming
+```
+
+**Server — trial grant on signup:**
+
+```typescript
+// src/routes/auth.ts — POST /auth/signup
+
+// After creating the user:
+const trialDays = 7
+await prisma.user.update({
+  where: { id: newUser.id },
+  data: {
+    tier: 'PRO',
+    trialEndsAt: addDays(new Date(), trialDays),
+    hasUsedTrial: true,
+  }
+})
+```
+
+**Trial expiry job (BullMQ — daily cron):**
+
+```typescript
+// src/jobs/trialExpiryJob.ts
+// Runs at 2am CT daily — downgrades expired trials with no active subscription
+
+export async function expireTrials() {
+  const expired = await prisma.user.findMany({
+    where: {
+      tier: 'PRO',
+      trialEndsAt: { lt: new Date() },
+      revenueCatUserId: null,   // no paid subscription attached
+    },
+    select: { id: true },
+  })
+
+  for (const user of expired) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { tier: 'FREE', trialEndsAt: null },
+    })
+    // Push: "Your Pro trial has ended — upgrade to keep your meal planning tools"
+    await sendPushNotification(user.id, {
+      title: 'Your Pro trial has ended',
+      body: 'Upgrade to Pro for $9.99/mo to keep price trends, AI suggestions, and more.',
+      data: { screen: 'paywall' },
+    })
+  }
+}
+```
+
+**Day-6 trial reminder job (BullMQ — daily cron):**
+
+```typescript
+// Runs at 10am CT daily
+export async function sendTrialEndingReminders() {
+  const tomorrow = addDays(new Date(), 1)
+  const dayAfter  = addDays(new Date(), 2)
+
+  const expiringSoon = await prisma.user.findMany({
+    where: {
+      tier: 'PRO',
+      trialEndsAt: { gte: tomorrow, lt: dayAfter },
+      revenueCatUserId: null,
+    },
+    select: { id: true },
+  })
+
+  for (const user of expiringSoon) {
+    await sendPushNotification(user.id, {
+      title: 'Pro trial ends tomorrow',
+      body: "You've been using price trends, AI suggestions & unlimited plans. Keep it for $9.99/mo.",
+      data: { screen: 'paywall' },
+    })
+  }
+}
+```
+
+**Mobile — trial state detection:**
+
+```typescript
+// apps/mobile/src/lib/subscription.ts — extend syncSubscriptionStatus()
+
+export async function syncSubscriptionStatus() {
+  const customerInfo = await Purchases.getCustomerInfo()
+  const hasPlus = customerInfo.entitlements.active['plus'] !== undefined
+  const hasPro  = customerInfo.entitlements.active['pro']  !== undefined
+
+  // Detect RevenueCat trial state
+  const proEntitlement = customerInfo.entitlements.active['pro']
+  const isTrialPeriod  = proEntitlement?.periodType === 'TRIAL'
+
+  const tier: Tier = hasPro ? 'PRO' : hasPlus ? 'PLUS' : 'FREE'
+  await apiClient.post('/subscription/sync', { tier, isTrialPeriod })
+}
+
+// Trial banner (shown in app header during trial):
+// "Pro Trial · 3 days left"  →  taps to paywall with "Lock in Pro" CTA
+```
+
+**`GET /subscription/status` response during trial:**
+
+```json
+{
+  "tier": "PRO",
+  "isTrial": true,
+  "trialEndsAt": "2026-04-12T23:59:59Z",
+  "daysRemaining": 3,
+  "renewalDate": null,
+  "limits": { ... }
+}
+```
+
+**Paywall CTA copy (Sprint 7 — use these exact strings):**
+
+| State | Headline | CTA button |
+|---|---|---|
+| New user (pre-trial) | "Try Pro free for 7 days" | "Start free trial" |
+| During trial | "You're on a Pro trial · X days left" | "Upgrade to keep Pro · $9.99/mo" |
+| Post-trial, first gate | "Your Pro trial ended" | "Get Pro back · $9.99/mo" |
+| Existing free user (never trialled) | "Unlock the full SmartBite" | "Start free trial" |
+
+**Anti-abuse guard:**
+- `hasUsedTrial = true` is set on the *user account*, not the device
+- Supabase email confirmation (re-enabled in Sprint 8) prevents throwaway accounts
+- A second account with the same email is blocked at the DB level (`email @unique`)
+
+**RevenueCat setup (required before Sprint 7):**
+1. In App Store Connect: add 7-day free trial introductory offer to the Pro monthly SKU
+2. In Google Play Console: add 7-day free trial to the Pro monthly subscription
+3. In RevenueCat dashboard: configure `pro` entitlement to include both monthly + annual Pro SKUs
+4. The trial is handled by RevenueCat + the app stores — the server `trialEndsAt` field is a
+   server-side fallback to ensure tier is correct even if RevenueCat webhook is delayed
+
+---
+
+### 7. Operational runbooks
 
 > These do not go in the app. Document them in Notion/Linear before launch.
 > Claude Code should add structured error responses and log lines that make
 > these runbooks actionable.
 
-**MealMe API outage:**
-- Detection: `GET /prices/scan` error rate >10% over 5 minutes (PostHog alert)
-- Degraded mode: serve `CanonicalPrice` data only; if none, show "Prices temporarily unavailable — check back soon" with `PriceDisplay.confidence = 'low'`
-- Code: `scanPrices` must catch MealMe errors and return degraded result, not throw
-
-```typescript
-// src/services/pricingService.ts
-async function queryMealMe(...): Promise<StoreResult | null> {
-  try {
-    // ... MealMe call
-  } catch (err) {
-    logger.error({ err }, 'MealMe API error — returning null for degraded mode')
-    return null  // caller falls back to canonical or shows unavailable
-  }
-}
-```
-
-**Kroger API outage:**
-- Same pattern — return null, fall back to MealMe for Kroger stores, or degrade gracefully
+**Community price data is sparse (new store / new ingredient):**
+- This is expected, not an outage. Return `hasData: false` in `ScanResult.bestSingleStore`
+- Mobile shows "Be the first to scan this!" CTA — redirects to scanner
+- No alert needed — this is the cold-start state, not a degradation
 
 **Claude API outage:**
 - `generateMealPlan` catches Anthropic errors and returns `503` with body:
@@ -2734,9 +3634,9 @@ async function queryMealMe(...): Promise<StoreResult | null> {
 - Do NOT show a generic "Something went wrong" — users need to know it's temporary
 
 **Key rotation (document rotation process, not keys themselves):**
-- MealMe, Kroger, Anthropic keys stored in Railway/Fly environment variables
+- Anthropic, Spoonacular, Edamam, RevenueCat keys stored in Railway/Fly environment variables
 - Rotation procedure: update env var → redeploy → verify health check → revoke old key
-- Health check endpoint: `GET /health` returns `{ status: 'ok', apis: { mealme, kroger, anthropic } }`
+- Health check endpoint: `GET /health` returns `{ status: 'ok', apis: { anthropic, spoonacular } }`
 
 ```typescript
 // GET /health — unauthenticated, used by hosting platform + runbook
@@ -2854,6 +3754,185 @@ pnpm add @react-native-async-storage/async-storage
 - The `shared/` package contains all TypeScript types used by both `mobile` and `api`
 - Use `pnpm` as the package manager throughout
 - Expo environment variables must be prefixed `EXPO_PUBLIC_` to be accessible on the client
+
+---
+
+## Economics — cost model and unit economics
+
+> **Read this before building any AI feature.** Every Claude API call has a real
+> cost. The projections below are the basis for pricing decisions. When adding a
+> new AI-powered feature, estimate its per-call cost against these benchmarks before
+> shipping it to all tiers.
+
+---
+
+### Claude API — per-operation cost
+
+Model: `claude-sonnet-4-6` at $3.00/MTok input + $15.00/MTok output (as of 2026).
+
+| Operation | Input tokens | Output tokens | Cost per call |
+|---|---|---|---|
+| Meal plan generation (7-day) | ~1,000 | ~7,000 | ~$0.108 |
+| Single meal regeneration | ~800 | ~900 | ~$0.016 |
+| Custom recipe generation | ~600 | ~2,000 | ~$0.032 |
+| AI price suggestion | ~400 | ~300 | ~$0.007 |
+| Reminder habit suggestions (GET /reminders/suggestions) | ~600 | ~700 | ~$0.013 |
+
+**Haiku alternative** (`claude-haiku-4-5` at $0.80/MTok input + $4.00/MTok output):
+- Price suggestion: ~$0.0009 (88% cheaper — use for this feature in production)
+- Reminder suggestions: ~$0.0034 (74% cheaper)
+- Not suitable for meal plan generation — output quality is noticeably lower
+
+---
+
+### Monthly cost projections
+
+**Assumptions:**
+- Tier split: 80% Free / 15% Plus / 5% Pro
+- Free user monthly active rate: 50% (4 plan gens/mo average)
+- Plus user monthly active rate: 85% (12 plan gens/mo average)
+- Pro user monthly active rate: 90% (20 plan gens/mo average, uses suggestions + reminders)
+- RevenueCat: free tier up to $2,500 MRR; $99/mo Starter above that
+- Hosting (Railway/Fly): $20/mo base + ~$0.02/user/mo at scale
+- Supabase: free tier to 500MB; $25/mo Pro above that
+- Spoonacular: free tier 150 req/day; $29/mo Basic above that
+
+| Users (MAU) | Claude cost | RevenueCat | Hosting | Supabase | Spoonacular | **Total cost** | **MRR** | **Net** |
+|---|---|---|---|---|---|---|---|---|
+| 100 | $47 | $0 | $20 | $0 | $0 | **$67** | $112 | $45 |
+| 500 | $234 | $0 | $30 | $25 | $29 | **$318** | $562 | $244 |
+| 1,000 | $469 | $0 | $40 | $25 | $29 | **$563** | $1,124 | $561 |
+| 2,500 | $1,172 | $0 | $70 | $25 | $29 | **$1,296** | $2,810 | $1,514 |
+| 5,000 | $2,344 | $99 | $120 | $25 | $29 | **$2,617** | $5,620 | $3,003 |
+| 10,000 | $4,688 | $99 | $220 | $25 | $29 | **$5,061** | $11,240 | $6,179 |
+
+MRR formula: `(users × 0.15 × $4.99) + (users × 0.05 × $9.99)`
+
+**Gross margin ranges:**
+- 100 users: ~40% (RevenueCat free tier masks true margin)
+- 1,000 users: ~50%
+- 5,000+ users: ~53-55% (Claude cost dominates; hosting + services are near-fixed)
+
+---
+
+### Unit economics per user type
+
+| User type | Monthly revenue | Claude cost | Other cost | **Contribution** |
+|---|---|---|---|---|
+| Free user | $0.00 | $0.52 (4 plans) | $0.04 | **-$0.56** |
+| Plus user | $4.99 | $1.30 (12 plans) | $0.13 | **+$3.56** |
+| Pro user | $9.99 | $2.60 (20 plans + suggestions + reminders) | $0.17 | **+$7.22** |
+
+**The free-user subsidy problem:**
+- Each free user costs ~$0.56/mo to serve
+- At 80% free split, 100 Plus/Pro users must cover 400 free users: +$224 margin vs -$224 subsidy
+- Break-even requires ~45% paid conversion rate OR tighter free tier limits
+- **V1 mitigation:** free tier capped at 2 plans/week (8/mo vs 4/mo assumption above — actual cost closer to $1.04/mo per free user at full usage)
+- **V2 mitigation:** introduce scan-to-earn as a free-tier value driver that also generates community pricing data (zero incremental cost to serve)
+
+---
+
+### RevenueCat pricing tiers
+
+| Tier | Monthly cost | Condition |
+|---|---|---|
+| Free | $0 | Up to $2,500 MRR |
+| Starter | $99/mo | $2,500–$10,000 MRR |
+| Pro | $199/mo | $10,000–$50,000 MRR |
+| Scale | 1% of revenue | Above $50,000 MRR |
+
+RevenueCat handles iOS App Store + Google Play billing, webhook events, entitlement management, and subscription analytics. At V1 launch scale (<$2,500 MRR), the cost is $0.
+
+---
+
+### Subscription pricing (locked)
+
+| Tier | Monthly | Annual | Savings |
+|---|---|---|---|
+| Free | $0 | — | — |
+| Plus | $4.99/mo | $39.99/yr | 33% |
+| Pro | $9.99/mo | $79.99/yr | 33% |
+
+Annual pricing is managed via RevenueCat product IDs. Both monthly and annual SKUs must be configured in App Store Connect and Google Play Console before Sprint 7.
+
+---
+
+### Cost optimization levers
+
+Apply these in order of impact. Do not optimise prematurely — implement the baseline first, then apply when you have real usage data.
+
+**1. Switch AI price suggestions + reminders to Haiku (Sprint 5)**
+- Change: use `claude-haiku-4-5-20251001` for `GET /prices/suggestion` and `GET /reminders/suggestions`
+- Saving: 88% cost reduction on these calls
+- Risk: lower reasoning quality — test with real purchase histories before shipping
+- Implementation: pass model as a constant `AI_SUGGESTION_MODEL` in the service; default to Haiku, env-override to Sonnet for testing
+
+```typescript
+// src/services/priceService.ts
+const AI_SUGGESTION_MODEL = process.env.AI_SUGGESTION_MODEL ?? 'claude-haiku-4-5-20251001'
+
+const response = await anthropic.messages.create({
+  model: AI_SUGGESTION_MODEL,
+  max_tokens: 500,
+  messages: [{ role: 'user', content: suggestionPrompt }],
+})
+```
+
+**2. Plan-level generation cache (Sprint 2, revisit Sprint 5)**
+- Cache key: `plan:${userId}:${profileHash}` where `profileHash` = hash of budget + dietary + servings
+- TTL: 24 hours
+- Benefit: users who tap "Generate" multiple times within a day (common in early exploration) don't re-spend $0.11 each time
+- Do NOT cache across profile changes — a changed budget or dietary pref should trigger a fresh generation
+- Estimated saving: 15–25% of plan generation costs at scale
+
+```typescript
+// src/routes/plans.ts
+const profileHash = createHash('sha256')
+  .update(JSON.stringify({ budget: profile.weeklyBudget, goals: profile.dietaryGoals, servings: profile.servings }))
+  .digest('hex').slice(0, 16)
+
+const cacheKey = `plan:${userId}:${profileHash}`
+const cached = await redis.get(cacheKey)
+if (cached) return JSON.parse(cached)
+// ... generate + cache for 24h
+```
+
+**3. Reduce free-tier max_tokens (Sprint 2)**
+- Free users: set `max_tokens: 5000` (vs 8000 for paid)
+- Rationale: free plans average lower complexity; 5K tokens is sufficient for a 7-day plan
+- Saving: ~20% on free-tier generation costs
+- Implementation: pass `maxTokens` from tier config
+
+```typescript
+// src/services/mealPlanService.ts
+const maxTokens = tier === 'FREE' ? 5000 : 8000
+
+const response = await anthropic.messages.create({
+  model: 'claude-sonnet-4-6',
+  max_tokens: maxTokens,
+  messages: [{ role: 'user', content: prompt }],
+})
+```
+
+**4. Batch reminder suggestions (Sprint 5)**
+- Instead of one Claude call per user per day, batch 10 users' purchase histories into one call
+- Ask Claude to return suggestions for all 10 users in a single structured JSON response
+- Saving: ~85% reduction in reminder suggestion costs (1 call vs 10)
+- Risk: more complex prompt, harder to test — implement only after single-user version is validated
+
+---
+
+### Break-even and growth targets
+
+| Milestone | Users needed | MRR | Monthly profit |
+|---|---|---|---|
+| Break-even (Railway + Supabase paid) | ~250 | ~$280 | $0 |
+| $1K/mo profit | ~1,200 | ~$1,345 | $1,000 |
+| $5K/mo profit | ~5,200 | ~$5,830 | $5,000 |
+| Full-time income ($10K/mo) | ~10,000 | ~$11,240 | ~$6,200 |
+
+**V2 national expansion trigger:** ~2,000 TX users with ~60% canonical price coverage
+confirms the crowdsourced pricing model is viable before investing in state-by-state rollout.
 
 ---
 

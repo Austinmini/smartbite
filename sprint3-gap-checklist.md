@@ -39,7 +39,7 @@ Use this file to track the remaining work needed to fully satisfy the Sprint 3 o
 
 ## UX / product gaps
 
-- [ ] Handle degraded no-price responses cleanly in the recipe pricing UI
+- [x] Handle degraded no-price responses cleanly in the recipe pricing UI
   - Problem: backend returns `hasAnyPrices` and `message`, but the mobile screen does not render that state explicitly.
   - Current code:
     - `apps/api/src/services/pricingService.ts`
@@ -50,11 +50,12 @@ Use this file to track the remaining work needed to fully satisfy the Sprint 3 o
     - unavailable ingredient/store rows are understandable to the user
 
 - [ ] Add the “Add to this week’s plan” CTA on recipe detail
-  - Problem: this is still unchecked in Sprint 3 and not implemented in the screen.
+  - Status: deferred pending product definition on what “add to this week’s plan” should do from recipe detail.
+  - Problem: the current app only opens recipe detail from an existing planned meal, so the intended add-to-plan behaviour is ambiguous.
   - Current code:
     - `apps/mobile/app/recipe/[id].tsx`
     - `CLAUDE.md`
-  - Done when:
+  - Revisit when:
     - recipe detail includes an “Add to this week’s plan” action
     - tapping it adds the recipe into the active weekly plan flow
     - related Sprint 3 checklist item can be checked off

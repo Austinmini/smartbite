@@ -6,6 +6,7 @@ export interface PriceCompareStore {
   storeName: string
   totalCost: number
   distanceMiles: number
+  hasLivePrices?: boolean
 }
 
 interface PriceCompareBarProps {
@@ -36,7 +37,7 @@ export function PriceCompareBar({
                 {store.storeName}
               </Text>
               <Text style={[styles.meta, selected && styles.metaSelected]}>
-                ${store.totalCost.toFixed(2)}
+                {store.hasLivePrices === false ? 'No live prices' : `$${store.totalCost.toFixed(2)}`}
               </Text>
             </TouchableOpacity>
           )
