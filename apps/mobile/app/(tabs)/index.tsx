@@ -1,3 +1,4 @@
+import React from 'react'
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useMealPlanStore } from '../../stores/mealPlanStore'
@@ -9,8 +10,29 @@ const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'
 
 export default function HomeScreen() {
   const router = useRouter()
-  const { plan, isGenerating, error, setPlan, setGenerating, setError } = useMealPlanStore()
+  const { plan, isGenerating, error, setPlan, clearPlan, setGenerating, setError } = useMealPlanStore()
   const token = useAuthStore((s) => s.token)
+
+  // Sync plan from server on mount — ensures the local store always reflects the
+  // current user's plan, not a stale plan cached from a previous session/account.
+  React.useEffect(() => {
+    async function syncPlan() {
+      try {
+        const res = await fetch(`${API_BASE}/plans/current`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (res.status === 204) {
+          clearPlan()
+        } else if (res.ok) {
+          const body = await res.json()
+          setPlan(body.plan)
+        }
+      } catch {
+        // Network error — keep showing the cached plan rather than flashing empty state
+      }
+    }
+    if (token) syncPlan()
+  }, [token])
 
   async function generatePlan() {
     setGenerating(true)
