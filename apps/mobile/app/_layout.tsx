@@ -2,7 +2,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { useFonts } from 'expo-font'
 import { Stack, useRouter, useSegments } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useColorScheme } from '@/components/useColorScheme'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
@@ -43,6 +43,7 @@ function RootLayoutNav() {
   const { onboardingComplete } = useProfileStore()
   const segments = useSegments()
   const router = useRouter()
+  const [sessionReady, setSessionReady] = useState(false)
 
   // On web, onRehydrateStorage can miss before first render — force it
   useEffect(() => {
@@ -55,18 +56,35 @@ function RootLayoutNav() {
     return unsub
   }, [])
 
-  // On cold start: restore the Supabase session from stored tokens so auto-refresh works.
-  // Supabase uses in-memory storage (lib/supabase.ts) — it forgets the session on restart.
-  // We persist access_token + refresh_token in Zustand/AsyncStorage and hand them back here.
+  // On cold start: await setSession so the in-memory Supabase session is fully
+  // populated (and the refresh_token exchanged for a fresh access_token if needed)
+  // before any screen renders and fires API calls.
   useEffect(() => {
-    const { token, refreshToken } = useAuthStore.getState()
-    if (token && refreshToken) {
-      supabase.auth.setSession({ access_token: token, refresh_token: refreshToken })
-        .catch(() => {
-          // Tokens are stale and can't be refreshed — force re-login
+    async function restoreSession() {
+      const { token, refreshToken, user } = useAuthStore.getState()
+      if (token && refreshToken) {
+        try {
+          const { data, error } = await supabase.auth.setSession({
+            access_token: token,
+            refresh_token: refreshToken,
+          })
+          if (error || !data.session) {
+            useAuthStore.getState().clearUser()
+          } else if (data.session.access_token !== token && user) {
+            // Supabase silently refreshed the access token — update the store
+            useAuthStore.getState().setUser(
+              user,
+              data.session.access_token,
+              data.session.refresh_token ?? refreshToken,
+            )
+          }
+        } catch {
           useAuthStore.getState().clearUser()
-        })
+        }
+      }
+      setSessionReady(true)
     }
+    restoreSession()
   }, [])
 
   // Keep auth store in sync with Supabase session (handles token refresh + sign-out).
@@ -106,7 +124,7 @@ function RootLayoutNav() {
     }
   }, [token, onboardingComplete, _hasHydrated, segments])
 
-  if (!_hasHydrated) return null
+  if (!_hasHydrated || !sessionReady) return null
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
