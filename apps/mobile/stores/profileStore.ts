@@ -36,6 +36,7 @@ interface ProfileState {
   setCuisinePrefs: (prefs: string[]) => void
   setCookingTimeMax: (mins: number) => void
   setServings: (n: number) => void
+  reset: () => void
 }
 
 export const useProfileStore = create<ProfileState>()(
@@ -92,6 +93,19 @@ export const useProfileStore = create<ProfileState>()(
       setCuisinePrefs: (prefs) => set({ cuisinePrefs: prefs }),
       setCookingTimeMax: (mins) => set({ cookingTimeMax: mins }),
       setServings: (n) => set({ servings: n }),
+      reset: () => set({
+        onboardingComplete: false,
+        weeklyBudget: 100,
+        location: null,
+        preferredRetailers: [],
+        selectedStores: [],
+        nearbyStores: [],
+        dietaryGoals: [],
+        allergies: [],
+        cuisinePrefs: [],
+        cookingTimeMax: 60,
+        servings: 2,
+      }),
     }),
     {
       name: 'profile-store',

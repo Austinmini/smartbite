@@ -41,6 +41,7 @@ interface MealPlanState {
   clearPlan: () => void
   setGenerating: (v: boolean) => void
   setError: (e: string | null) => void
+  reset: () => void
 }
 
 export const useMealPlanStore = create<MealPlanState>()(
@@ -53,6 +54,7 @@ export const useMealPlanStore = create<MealPlanState>()(
       clearPlan: () => set({ plan: null }),
       setGenerating: (v) => set({ isGenerating: v }),
       setError: (e) => set({ error: e }),
+      reset: () => set({ plan: null, isGenerating: false, error: null }),
     }),
     {
       name: 'meal-plan-store',

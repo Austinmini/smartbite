@@ -7,6 +7,7 @@ import { useColorScheme } from '@/components/useColorScheme'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
 import { useProfileStore } from '@/stores/profileStore'
+import { useMealPlanStore } from '@/stores/mealPlanStore'
 // react-native-reanimated bare import omitted — causes import.meta error on web (Reanimated v4)
 // Re-add when animations are needed (Sprint 4+) and web bundling is resolved
 
@@ -68,13 +69,25 @@ function RootLayoutNav() {
     }
   }, [])
 
-  // Keep auth store in sync with Supabase session (handles token refresh + sign-out)
+  // Keep auth store in sync with Supabase session (handles token refresh + sign-out).
+  // On session clear: reset ALL stores so no previous-user state bleeds into the next session.
   useEffect(() => {
+    let lastUserId: string | undefined
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
         useAuthStore.getState().clearUser()
+        useMealPlanStore.getState().reset()
+        useProfileStore.getState().reset()
+        lastUserId = undefined
+      } else if (session.user.id !== lastUserId) {
+        // Different user signed in (account switch without explicit logout)
+        if (lastUserId !== undefined) {
+          useMealPlanStore.getState().reset()
+          useProfileStore.getState().reset()
+        }
+        lastUserId = session.user.id
       }
-      // Token is refreshed silently — no action needed; apiClient always calls getSession()
     })
     return () => subscription.unsubscribe()
   }, [])
