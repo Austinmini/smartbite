@@ -32,10 +32,10 @@
     "plugins": [
       "expo-router",
       [
-        "react-native-vision-camera",
+        "expo-camera",
         {
           "cameraPermissionText": "SmartBite needs camera access to scan grocery items",
-          "enableMicrophonePermission": false
+          "microphonePermission": false
         }
       ]
     ],

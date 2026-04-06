@@ -1,7 +1,7 @@
 import React from 'react'
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
-import { useCameraDevice, useCameraPermission, Camera, useCodeScanner } from 'react-native-vision-camera'
+import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera'
 
 interface ScannerParams {
   storeName?: string
@@ -11,33 +11,27 @@ interface ScannerParams {
 export default function ScannerScreen() {
   const router = useRouter()
   const params = useLocalSearchParams<ScannerParams>()
-  const { hasPermission, requestPermission } = useCameraPermission()
-  const device = useCameraDevice('back')
+  const [permission, requestPermission] = useCameraPermissions()
   const [scanned, setScanned] = React.useState(false)
 
-  const codeScanner = useCodeScanner({
-    codeTypes: ['ean-13', 'ean-8', 'upc-a', 'upc-e'],
-    onCodeScanned: (codes) => {
-      if (scanned || codes.length === 0) return
-      const upc = codes[0].value
-      if (!upc) return
-      setScanned(true)
-      router.replace({
-        pathname: '/scanner/confirm',
-        params: {
-          upc,
-          storeName: params.storeName ?? '',
-          planId: params.planId ?? '',
-        },
-      })
-    },
-  })
+  function handleBarCodeScanned({ data }: BarcodeScanningResult) {
+    if (scanned || !data) return
+    setScanned(true)
+    router.replace({
+      pathname: '/scanner/confirm',
+      params: {
+        upc: data,
+        storeName: params.storeName ?? '',
+        planId: params.planId ?? '',
+      },
+    })
+  }
 
-  React.useEffect(() => {
-    if (!hasPermission) requestPermission()
-  }, [hasPermission])
+  if (!permission) {
+    return <View style={styles.centered} />
+  }
 
-  if (!hasPermission) {
+  if (!permission.granted) {
     return (
       <View style={styles.centered}>
         <Text style={styles.permissionText}>Camera permission required to scan barcodes.</Text>
@@ -48,21 +42,13 @@ export default function ScannerScreen() {
     )
   }
 
-  if (!device) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.permissionText}>No camera found on this device.</Text>
-      </View>
-    )
-  }
-
   return (
     <View style={styles.container}>
-      <Camera
+      <CameraView
         style={StyleSheet.absoluteFill}
-        device={device}
-        isActive={!scanned}
-        codeScanner={codeScanner}
+        facing="back"
+        barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e'] }}
+        onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
       />
 
       {/* Dark overlay with cutout hint */}
@@ -115,16 +101,9 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', gap: 20,
   },
 
-  scanWindow: {
-    width: WINDOW_SIZE, height: WINDOW_SIZE,
-    position: 'relative',
-  },
+  scanWindow: { width: WINDOW_SIZE, height: WINDOW_SIZE, position: 'relative' },
 
-  corner: {
-    position: 'absolute',
-    width: CORNER_SIZE, height: CORNER_SIZE,
-    borderColor: '#22c55e',
-  },
+  corner: { position: 'absolute', width: CORNER_SIZE, height: CORNER_SIZE, borderColor: '#22c55e' },
   cornerTL: { top: 0, left: 0, borderTopWidth: CORNER_THICKNESS, borderLeftWidth: CORNER_THICKNESS },
   cornerTR: { top: 0, right: 0, borderTopWidth: CORNER_THICKNESS, borderRightWidth: CORNER_THICKNESS },
   cornerBL: { bottom: 0, left: 0, borderBottomWidth: CORNER_THICKNESS, borderLeftWidth: CORNER_THICKNESS },
