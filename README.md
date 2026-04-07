@@ -19,6 +19,8 @@ Mobile-first app that helps communities eat well within their budget. AI-generat
 - Get AI-powered price trend suggestions and staple reminders (Pro)
 - Save favourite recipes, track what you cook, get smarter plans over time
 - New users get a **7-day Pro trial** on signup
+- Interactive onboarding checklist + contextual "Did You Know" tips to learn the app
+- In-app feedback and bug reporting from the Profile screen
 
 ---
 
@@ -68,6 +70,21 @@ The architecture is stateless and scales horizontally. Four targeted fixes befor
 | Async plan generation | Sprint 7 | Queue Claude job, return immediately, mobile polls `GET /plans/current` |
 
 Everything else (Redis, rate limiting, tier enforcement, Prisma query safety) handles 10k+ without changes.
+
+---
+
+## AI model configuration
+
+All AI model selections are centralised in `apps/api/src/lib/aiConfig.ts` and driven by environment variables — no code changes needed to swap models.
+
+| Use case | Default model | Override env var |
+|---|---|---|
+| Meal plan generation | `claude-sonnet-4-6` | `AI_MODEL_MEAL_PLAN` |
+| Recipe generation | `claude-sonnet-4-6` | `AI_MODEL_RECIPE_GENERATE` |
+| Price suggestions | `claude-haiku-4-5-20251001` | `AI_MODEL_PRICE_SUGGEST` |
+| Reminder habit learning | `claude-haiku-4-5-20251001` | `AI_MODEL_REMINDERS` |
+
+Haiku is used for lightweight structured tasks (~88% cheaper than Sonnet). Sonnet is reserved for creative generation where output quality matters.
 
 ---
 
@@ -227,6 +244,42 @@ cp apps/api/.env.example apps/api/.env
 - [ ] RevenueCat SDK + introductory offer (7-day free trial on Pro SKU)
 - [ ] Trial banner "Pro Trial · X days left", paywall screen, restore purchases
 - [ ] `TierGatePrompt` — contextual upgrade prompts with post-trial framing
+
+---
+
+### AI model config (cross-cutting, implement in Sprint 5)
+> "Swap the AI model for any use case without touching service code"
+
+- [ ] `src/lib/aiConfig.ts` — centralised `AI_MODELS` constants, all env-driven
+- [ ] Update `mealPlanService.ts` to use `AI_MODELS.MEAL_PLAN`
+- [ ] Apply to all Sprint 5 AI services (price suggestions, reminders)
+- [ ] Document override vars in `.env.example`
+
+---
+
+### Feedback channel (cross-cutting, implement in Sprint 6)
+> "Users can report bugs, wrong prices, and request features from the app"
+
+- [ ] `Feedback` model — type (BUG|FEATURE_REQUEST|PRICE_ISSUE|GENERAL), subject, body, appVersion, platform
+- [ ] `POST /feedback` — authenticated, rate limited 5/hr
+- [ ] `FeedbackSheet` component — type picker, subject + body inputs, submit
+- [ ] Profile screen: "Send feedback" entry point
+- [ ] Scanner success: "Report wrong price" shortcut (pre-fills type=PRICE_ISSUE)
+
+---
+
+### Onboarding checklist + Did You Know tips (cross-cutting, implement in Sprint 5)
+> "Interactive checklist drives first-week activation; tips teach advanced features at the right moment"
+
+**Onboarding checklist (home screen card, disappears when all done)**
+- [ ] `completedActions String[]` field on UserProfile
+- [ ] `markActionComplete()` helper wired to: `POST /plans/generate`, `POST /prices/observation`, `POST /favourites`, `POST /pantry`, `POST /recipes/:id/cooked`
+- [ ] `OnboardingChecklist` component — progress bar, 5 action rows with CTAs, auto-hides on completion
+
+**Did You Know tips (contextual, per-screen)**
+- [ ] `TipBanner` component — dismissible strip with emoji + text
+- [ ] AsyncStorage dismiss tracking (key: `tips_dismissed`)
+- [ ] 7 contextual tips wired to: Home, Shopping list (first visit + first check-off), Pantry, Recipe detail, Rewards, Profile
 
 ---
 
