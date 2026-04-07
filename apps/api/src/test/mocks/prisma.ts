@@ -79,6 +79,7 @@ jest.mock('../../lib/prisma', () => ({
     },
     purchaseHistory: {
       create: jest.fn(),
+      findFirst: jest.fn(),
       findMany: jest.fn(),
     },
     pantryItem: {
@@ -92,8 +93,30 @@ jest.mock('../../lib/prisma', () => ({
       create: jest.fn(),
     },
     favourite: {
+      create: jest.fn(),
       findUnique: jest.fn(),
+      findMany: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
+      count: jest.fn(),
+    },
+    collection: {
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+      count: jest.fn(),
+    },
+    feedback: {
+      create: jest.fn(),
+    },
+    referralEvent: {
+      count: jest.fn(),
+    },
+    referralReward: {
+      aggregate: jest.fn(),
     },
     priceAlert: {
       create: jest.fn(),

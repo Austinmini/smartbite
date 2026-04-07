@@ -7,6 +7,9 @@ import { NutritionCard } from '../../components/NutritionCard'
 import { PriceCompareBar } from '../../components/PriceCompareBar'
 import { BestStoreCard } from '../../components/BestStoreCard'
 import { apiClient } from '../../lib/apiClient'
+import { FavouriteButton } from '../../components/FavouriteButton'
+import { CollectionPicker } from '../../components/CollectionPicker'
+import { useSavedRecipesStore } from '../../stores/savedRecipesStore'
 
 interface PriceAlert {
   id: string
@@ -52,6 +55,19 @@ export default function RecipeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const router = useRouter()
   const plan = useMealPlanStore((s) => s.plan)
+  const savedFavourites = useSavedRecipesStore((state) => state.favourites)
+  const savedRecipe = savedFavourites.find((entry) => entry.recipeId === id)
+  const meal = plan?.meals.find((m) => m.id === id) ?? (savedRecipe
+    ? {
+        id: savedRecipe.recipeId,
+        mealPlanId: plan?.id ?? 'saved',
+        dayOfWeek: new Date().getDay(),
+        mealType: 'DINNER' as const,
+        estCost: 0,
+        bestStore: 'Saved',
+        recipe: savedRecipe.recipe,
+      }
+    : undefined)
   const token = useAuthStore((s) => s.token)
   const [regenerating, setRegenerating] = React.useState(false)
   const [priceData, setPriceData] = React.useState<PriceScanResponse | null>(null)
@@ -77,9 +93,14 @@ export default function RecipeDetailScreen() {
   const [savingAlert, setSavingAlert] = React.useState(false)
   const user = useAuthStore((s) => s.user)
   const canSetAlerts = user?.tier === 'PLUS' || user?.tier === 'PRO'
-
-  // Find meal by id
-  const meal = plan?.meals.find((m) => m.id === id)
+  const [collectionPickerVisible, setCollectionPickerVisible] = React.useState(false)
+  const saveFavourite = useSavedRecipesStore((state) => state.saveFavourite)
+  const removeFavourite = useSavedRecipesStore((state) => state.removeFavourite)
+  const isSaved = useSavedRecipesStore((state) => state.isSaved(meal?.recipe.id ?? ''))
+  const collections = useSavedRecipesStore((state) => state.collections)
+  const createCollection = useSavedRecipesStore((state) => state.createCollection)
+  const addRecipeToCollection = useSavedRecipesStore((state) => state.addRecipeToCollection)
+  const updateSavedFavourite = useSavedRecipesStore((state) => state.updateFavourite)
 
   React.useEffect(() => {
     let active = true
@@ -194,6 +215,9 @@ export default function RecipeDetailScreen() {
       })
       setCookSheet(false)
       setCookResult(result)
+      if (useSavedRecipesStore.getState().isSaved(meal.recipe.id)) {
+        updateSavedFavourite(meal.recipe.id, { timesCooked: result.timesCooked })
+      }
     } catch (err: any) {
       Alert.alert('Could not record', err.message ?? 'Please try again.')
     } finally {
@@ -220,6 +244,23 @@ export default function RecipeDetailScreen() {
       <View style={styles.hero}>
         <Text style={styles.mealType}>{meal.mealType}</Text>
         <Text style={styles.title}>{recipe.title}</Text>
+        <View style={styles.actionsRow}>
+          <FavouriteButton
+            isSaved={isSaved}
+            onPress={() => {
+              if (isSaved) {
+                removeFavourite(recipe.id)
+                return
+              }
+              const result = saveFavourite(recipe, user?.tier ?? 'FREE')
+              if (!result.ok) {
+                Alert.alert('Save limit reached', result.error)
+                return
+              }
+              setCollectionPickerVisible(true)
+            }}
+          />
+        </View>
         <View style={styles.metaRow}>
           <Text style={styles.metaItem}>{recipe.readyInMinutes} min</Text>
           <Text style={styles.metaItem}>{recipe.servings} servings</Text>
@@ -503,6 +544,24 @@ export default function RecipeDetailScreen() {
         </View>
       </View>
     </Modal>
+      <CollectionPicker
+        visible={collectionPickerVisible}
+        collections={collections}
+        onClose={() => setCollectionPickerVisible(false)}
+        onSelectCollection={(collectionId) => {
+          addRecipeToCollection(collectionId, recipe.id)
+          setCollectionPickerVisible(false)
+        }}
+        onCreateCollection={(name, emoji) => {
+          const result = createCollection(name, emoji, user?.tier ?? 'FREE')
+          if (!result.ok || !result.collection) {
+            Alert.alert('Could not create collection', result.error ?? 'Please try again.')
+            return
+          }
+          addRecipeToCollection(result.collection.id, recipe.id)
+          setCollectionPickerVisible(false)
+        }}
+      />
     </>
   )
 }
@@ -530,6 +589,12 @@ const styles = StyleSheet.create({
     borderColor: '#fde68a',
     padding: 16,
     gap: 6,
+  },
+  actionsRow: {
+    marginTop: 16,
+    marginBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
   },
   noticeTitle: { fontSize: 14, fontWeight: '700', color: '#92400e' },
   noticeBody: { fontSize: 13, lineHeight: 19, color: '#a16207' },

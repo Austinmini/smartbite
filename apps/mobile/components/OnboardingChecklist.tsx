@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from 'react-native'
 export interface ChecklistActions {
   profileComplete: boolean
   firstPlanGenerated: boolean
-  firstRecipeSaved: boolean
+  firstRecipeCooked: boolean
   firstScan: boolean
   firstPurchase: boolean
 }
@@ -16,7 +16,7 @@ interface Props {
 const CHECKLIST_ITEMS: { key: keyof ChecklistActions; label: string }[] = [
   { key: 'profileComplete', label: 'Set up your profile' },
   { key: 'firstPlanGenerated', label: 'Generate your first plan' },
-  { key: 'firstRecipeSaved', label: 'Save a recipe' },
+  { key: 'firstRecipeCooked', label: 'Mark a recipe as cooked' },
   { key: 'firstScan', label: 'Scan a grocery item' },
   { key: 'firstPurchase', label: 'Record your first purchase' },
 ]

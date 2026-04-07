@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { verifyJWT } from '../middleware/auth'
 import { prisma } from '../lib/prisma'
+import { markActionComplete } from '../services/onboardingService'
 
 export async function recipesRoute(app: FastifyInstance) {
   // ── POST /recipes/:id/cooked ──────────────────────────────────────────────
@@ -91,6 +92,8 @@ export async function recipesRoute(app: FastifyInstance) {
         })
         timesCooked = updated.timesCooked
       }
+
+      await markActionComplete(userId, 'first_recipe_cooked')
 
       return reply.send({ deductions, missingFromPantry, timesCooked })
     }

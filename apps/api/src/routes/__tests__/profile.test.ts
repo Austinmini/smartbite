@@ -52,12 +52,18 @@ const VALID_PROFILE = {
 
 describe('GET /profile', () => {
   it('returns profile for authenticated user', async () => {
-    prismaMock.userProfile.findUnique.mockResolvedValue({ ...VALID_PROFILE, id: 'p-1', userId: 'user-1' })
+    prismaMock.userProfile.findUnique.mockResolvedValue({
+      ...VALID_PROFILE,
+      id: 'p-1',
+      userId: 'user-1',
+      completedActions: ['GENERATED_PLAN'],
+    })
 
     const res = await app.inject({ method: 'GET', url: '/profile', headers: authHeaders() })
 
     expect(res.statusCode).toBe(200)
     expect(res.json().profile).toMatchObject({ weeklyBudget: 120 })
+    expect(res.json().profile.completedActions).toContain('first_plan_generated')
   })
 
   it('returns 404 when profile not yet created', async () => {
@@ -71,6 +77,28 @@ describe('GET /profile', () => {
   it('returns 401 without token', async () => {
     const res = await app.inject({ method: 'GET', url: '/profile' })
     expect(res.statusCode).toBe(401)
+  })
+})
+
+describe('GET /profile/checklist', () => {
+  it('returns normalized checklist progress with inferred completed items', async () => {
+    prismaMock.userProfile.findUnique.mockResolvedValue({
+      completedActions: ['MARKED_RECIPE_COOKED'],
+      scanCount: 1,
+    })
+    prismaMock.mealPlan.findFirst.mockResolvedValue({ id: 'plan-1' })
+    prismaMock.purchaseHistory.findFirst.mockResolvedValue({ id: 'purchase-1' })
+
+    const res = await app.inject({ method: 'GET', url: '/profile/checklist', headers: authHeaders() })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json().completedActions).toEqual(expect.arrayContaining([
+      'profile_complete',
+      'first_plan_generated',
+      'first_scan',
+      'first_purchase',
+      'first_recipe_cooked',
+    ]))
   })
 })
 

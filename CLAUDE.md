@@ -688,6 +688,7 @@ GET    /auth/me
 ### User profile & preferences
 ```
 GET    /profile
+GET    /profile/checklist         # Home-screen onboarding checklist progress
 PUT    /profile
 PUT    /profile/retailers          # Update preferred store list
 PUT    /profile/dietary            # Update dietary goals + allergies
@@ -737,7 +738,7 @@ DELETE /collections/:id/recipes/:recipeId
 
 ### Purchase history
 ```
-POST   /purchases                  # Record a purchase (called on shopping list check-off)
+POST   /purchases                  # Record a purchase (shopping list / scanner flow)
 GET    /purchases?ingredientName=  # History for a specific ingredient
 GET    /purchases/summary          # All-time ingredient purchase summary for profile
 ```
@@ -748,7 +749,7 @@ GET    /pantry                     # All pantry items for the current user
 POST   /pantry                     # Manually add or update a pantry item
 PUT    /pantry/:ingredientName     # Update quantity / unit / notes for an item
 DELETE /pantry/:ingredientName     # Remove item from pantry
-POST   /pantry/sync-purchase       # Sync a purchase into pantry (called automatically after POST /purchases)
+POST   /pantry/sync-purchase       # Sync a purchase into pantry (client calls this after POST /purchases)
 GET    /pantry/check?ingredients=  # Check pantry coverage for a list of ingredients (used by recipe detail)
 ```
 
@@ -1331,7 +1332,7 @@ checkable.
 - [x] `POST /prices/observation` — write scan to `PriceObservation`, trigger canonical recompute
 - [x] `processScanReward` service — base + pioneer + stale + streak Bites logic
 - [x] Canonical price recompute job (BullMQ) — weighted median from last 7 days of observations
-- [x] `POST /purchases` — record a purchase; auto-calls `POST /pantry/sync-purchase`
+- [x] `POST /purchases` — record a purchase; client then calls `POST /pantry/sync-purchase`
 - [x] `GET /purchases?ingredientName=` — purchase history for a specific ingredient
 - [x] `GET /shopping-list/:planId` updated — include `lastPurchase` per ingredient
 - [x] Pantry CRUD — `GET/POST/PUT/DELETE /pantry`
@@ -1401,6 +1402,7 @@ recipe's total cost drops to your target.
 - [x] `GET /prices/suggestion?ingredient=&storeId=` — calls Claude Haiku with trend data, returns buy/hold/substitute suggestion (Pro gate)
 - [ ] Price polling job — runs every 6h, checks canonical price against alert target
 - [x] `POST /prices/alert`, `GET /prices/alerts`, `DELETE /prices/alerts/:id`
+- [x] Onboarding checklist progress stored on `UserProfile.completedActions`; `GET /profile/checklist` normalizes legacy values and infers profile / plan / scan / purchase completion
 - [ ] Push notification service (Expo Notifications)
 - [ ] Shopping list response enriched with `trendDirection: 'up' | 'down' | 'stable'` per ingredient
 - [x] Purchase reminders CRUD — `GET/POST/PUT/DELETE /reminders` (Pro gate)
@@ -1417,6 +1419,7 @@ recipe's total cost drops to your target.
 - [ ] Price alert UI on recipe detail — set target price, view active alerts
 - [ ] Notification permission request flow
 - [ ] Alert triggered notification deep-link → recipe detail
+- [x] Home-screen `OnboardingChecklist` card loads from `/profile/checklist` and refreshes after profile setup, plan generation, scans, purchases, and cooking
 - [ ] Reminders screen (within Profile or standalone) — list active reminders, add/edit/delete
 - [ ] `ReminderCard` component — ingredient name, quantity, unit, frequency chip, next-due date
 - [ ] `ReminderEditor` bottom sheet — name input, quantity + unit pickers, frequency picker (daily / every 3d / weekly / every 2w / monthly / custom N days)

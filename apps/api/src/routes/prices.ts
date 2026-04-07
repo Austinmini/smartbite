@@ -10,6 +10,7 @@ import {
 } from '../services/pricingService'
 import { processScanReward } from '../services/rewardsService'
 import { getPriceTrend, getAiPriceSuggestion } from '../services/priceTrendService'
+import { markActionComplete } from '../services/onboardingService'
 
 const TIER_STORE_LIMITS = {
   FREE: 1,
@@ -119,6 +120,7 @@ export async function pricesRoute(app: FastifyInstance) {
       })
 
       const bites = await processScanReward(userId, observation as any)
+      await markActionComplete(userId, 'first_scan')
 
       return reply.status(201).send({ observationId: observation.id, bites })
     }

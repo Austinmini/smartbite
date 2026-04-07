@@ -1,8 +1,11 @@
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert } from 'react-native'
+import React from 'react'
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert, Share } from 'react-native'
 import { useRouter } from 'expo-router'
 import { apiClient } from '@/lib/apiClient'
 import { useAuthStore } from '@/stores/authStore'
 import { useProfileStore } from '@/stores/profileStore'
+import { FeedbackSheet } from '@/components/FeedbackSheet'
+import { ReferralCard } from '@/components/ReferralCard'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -32,7 +35,30 @@ function PreferenceRow({ label, value, onEdit }: { label: string; value: string;
 export default function ProfileScreen() {
   const router = useRouter()
   const { user, token, clearUser } = useAuthStore()
-  const { weeklyBudget, preferredRetailers, dietaryGoals, allergies, cuisinePrefs, cookingTimeMax, servings, setOnboardingComplete } = useProfileStore()
+  const { weeklyBudget, preferredRetailers, dietaryGoals, allergies, cuisinePrefs, cookingTimeMax, servings } = useProfileStore()
+  const [feedbackVisible, setFeedbackVisible] = React.useState(false)
+  const [referralCode, setReferralCode] = React.useState<string | null>(null)
+  const [referralStats, setReferralStats] = React.useState({ invited: 0, converted: 0, totalBitesEarned: 0 })
+
+  React.useEffect(() => {
+    if (!token) return
+    let active = true
+
+    Promise.all([
+      apiClient.get<{ code: string }>('/referral/code', token),
+      apiClient.get<{ invited: number; converted: number; totalBitesEarned: number }>('/referral/stats', token),
+    ])
+      .then(([code, stats]) => {
+        if (!active) return
+        setReferralCode(code.code)
+        setReferralStats(stats)
+      })
+      .catch(() => {})
+
+    return () => {
+      active = false
+    }
+  }, [token])
 
   async function handleLogout() {
     Alert.alert('Sign out', 'Are you sure you want to sign out?', [
@@ -48,6 +74,27 @@ export default function ProfileScreen() {
         },
       },
     ])
+  }
+
+  async function handleFeedbackSubmit(payload: {
+    type: 'BUG' | 'FEATURE_REQUEST' | 'PRICE_ISSUE' | 'GENERAL'
+    subject?: string
+    body: string
+  }) {
+    try {
+      await apiClient.post('/feedback', payload, token ?? undefined)
+      setFeedbackVisible(false)
+      Alert.alert('Thanks!', "We'll review your feedback.")
+    } catch (err: any) {
+      Alert.alert('Could not send feedback', err.message ?? 'Please try again.')
+    }
+  }
+
+  async function handleShareReferral() {
+    if (!referralCode) return
+    await Share.share({
+      message: `Use my SmartBite code ${referralCode} and we both earn 150 Bites.`,
+    })
   }
 
   return (
@@ -93,9 +140,33 @@ export default function ProfileScreen() {
         <PreferenceRow label="Subscription" value={user?.tier ?? 'Free'} />
       </Section>
 
+      {referralCode ? (
+        <Section title="Referral">
+          <ReferralCard
+            code={referralCode}
+            invited={referralStats.invited}
+            converted={referralStats.converted}
+            onShare={handleShareReferral}
+          />
+          <Text style={styles.referralNote}>
+            {referralStats.totalBitesEarned} total Bites earned from referrals.
+          </Text>
+        </Section>
+      ) : null}
+
+      <TouchableOpacity style={styles.feedbackBtn} onPress={() => setFeedbackVisible(true)}>
+        <Text style={styles.feedbackText}>Send feedback</Text>
+      </TouchableOpacity>
+
       <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
         <Text style={styles.logoutText}>Sign out</Text>
       </TouchableOpacity>
+
+      <FeedbackSheet
+        visible={feedbackVisible}
+        onClose={() => setFeedbackVisible(false)}
+        onSubmit={handleFeedbackSubmit}
+      />
     </ScrollView>
   )
 }
@@ -115,6 +186,9 @@ const styles = StyleSheet.create({
   prefValue: { fontSize: 14, color: '#6b7280', marginTop: 2, textTransform: 'capitalize' },
   editBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: '#f3f4f6', minHeight: 44, justifyContent: 'center' },
   editText: { fontSize: 13, color: '#374151', fontWeight: '500' },
+  feedbackBtn: { marginTop: 8, marginBottom: 12, padding: 14, borderRadius: 10, borderWidth: 1, borderColor: '#0f766e', alignItems: 'center', minHeight: 44 },
+  feedbackText: { color: '#0f766e', fontSize: 16, fontWeight: '600' },
+  referralNote: { fontSize: 13, color: '#64748b', marginTop: 10 },
   logoutBtn: { marginTop: 8, padding: 14, borderRadius: 10, borderWidth: 1, borderColor: '#ef4444', alignItems: 'center', minHeight: 44 },
   logoutText: { color: '#ef4444', fontSize: 16, fontWeight: '600' },
 })

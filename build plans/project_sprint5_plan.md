@@ -46,10 +46,11 @@ type: project
 - [ ] Add `USDA_API_KEY` to `.env.example`
 
 ### Onboarding checklist (server side)
-- [ ] Add `completedActions String[]` to `UserProfile` schema + migration
-- [ ] `markActionComplete(userId, action)` helper
-- [ ] Wire to: `POST /plans/generate`, `POST /prices/observation`, `POST /pantry`, `POST /recipes/:id/cooked`
-- [ ] `GET /profile` includes `completedActions` in response
+- [x] Add `completedActions String[]` to `UserProfile` schema + migration
+- [x] `markActionComplete(userId, action)` helper
+- [x] Wire to: `PUT /profile`, `POST /plans/generate`, `POST /prices/observation`, `POST /purchases`, `POST /recipes/:id/cooked`
+- [x] `GET /profile` includes normalized `completedActions` in response
+- [x] `GET /profile/checklist` returns checklist progress for the mobile home card
 
 ### Announcements
 - [ ] `Announcement` model — title, body, type (BANNER|MODAL), style (INFO|SUCCESS|WARNING|PROMO), targetTiers, ctaText, ctaDeepLink, startsAt, endsAt

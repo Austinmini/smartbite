@@ -55,6 +55,9 @@ model User {
 
   // Reminders
   purchaseReminders PurchaseReminder[]
+
+  // Feedback
+  feedbackEntries   Feedback[]
 }
 
 model UserProfile {
@@ -165,6 +168,23 @@ model Collection {
   emoji     String?
   recipeIds String[]
   createdAt DateTime @default(now())
+}
+
+// ─── Feedback ────────────────────────────────────────────────────────────────
+
+model Feedback {
+  id         String       @id @default(cuid())
+  userId     String?
+  user       User?        @relation(fields: [userId], references: [id])
+  type       FeedbackType
+  subject    String?
+  body       String
+  appVersion String?
+  platform   String?
+  createdAt  DateTime     @default(now())
+
+  @@index([userId, createdAt])
+  @@index([type, createdAt])
 }
 
 // ─── Pricing ─────────────────────────────────────────────────────────────────
@@ -411,6 +431,13 @@ enum PromoType {
   PLUS_TRIAL
   BITES_BONUS
   REFERRAL_MULTIPLIER
+}
+
+enum FeedbackType {
+  BUG
+  FEATURE_REQUEST
+  PRICE_ISSUE
+  GENERAL
 }
 
 enum ItemCategory {

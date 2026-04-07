@@ -28,17 +28,17 @@ enum FeedbackType {
 ```
 
 ## API
-- `POST /feedback` — authenticated. Stores in DB + optionally emails the team.
+- `POST /feedback` — authenticated. Stores in DB.
   - Rate limited: 5 per hour per user (prevent spam)
   - Body: `{ type, subject?, body }` 
-  - Response: `{ id }` — 201
+  - Response: `{ feedback }` — 201
 
 ## Mobile — FeedbackSheet
 - Entry point: Profile screen → "Send feedback" button
 - Bottom sheet with:
   - Type selector: Bug / Feature request / Price issue / General
   - Subject (optional, single line)
-  - Body (required, multiline, min 10 chars)
+  - Body (required, multiline)
   - Submit button → success toast "Thanks! We'll review your feedback."
 - Pre-fill type when triggered from a specific context (e.g. "Report wrong price" on scanner success → type=PRICE_ISSUE)
 
@@ -52,8 +52,12 @@ Or Prisma Studio: `pnpm db:studio`
 - Admin dashboard with feedback triage
 
 ## Implementation status
-- [ ] Prisma schema + migration
-- [ ] `POST /feedback` route
-- [ ] `FeedbackSheet` component (mobile)
-- [ ] Profile screen entry point
-- [ ] "Report wrong price" trigger from scanner success screen
+- [x] Prisma schema + migration
+- [x] `POST /feedback` route
+- [x] `FeedbackSheet` component (mobile)
+- [x] Profile screen entry point
+- [x] "Report wrong price" trigger from scanner success screen
+
+## Notes
+- Current implementation stores feedback in DB and shows an in-app success alert.
+- Team email / Slack fan-out is still a V2 follow-up.

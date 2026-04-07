@@ -7,60 +7,61 @@ type: project
 # Sprint 6
 > "I can save recipes I love, organise them, and tell the team what's broken"
 
-**Status:** NOT STARTED
+**Status:** IMPLEMENTED CORE SLICE — follow-up polish remaining
 
 ---
 
 ## API tasks
 
 ### Favourites
-- [ ] `POST /favourites` — save recipe, returns 409 if already saved, 403 if free user at 10-item limit
-- [ ] `DELETE /favourites/:recipeId`
-- [ ] `PUT /favourites/:recipeId` — update rating (1–5), notes, timesCooked
-- [ ] `GET /favourites?sort=recent|mostCooked` — paginated
+- [x] `POST /favourites` — save recipe, returns 409 if already saved, 403 if free user at 10-item limit
+- [x] `DELETE /favourites/:recipeId`
+- [x] `PUT /favourites/:recipeId` — update rating (1–5), notes, timesCooked
+- [x] `GET /favourites?sort=recent|mostCooked` — paginated
 
 ### Collections
-- [ ] `GET /collections`
-- [ ] `POST /collections` — create (returns 403 if free user already has 1)
-- [ ] `PUT /collections/:id` — rename / update emoji
-- [ ] `DELETE /collections/:id`
-- [ ] `POST /collections/:id/recipes` — add recipe
-- [ ] `DELETE /collections/:id/recipes/:recipeId`
+- [x] `GET /collections`
+- [x] `POST /collections` — create (returns 403 if free user already has 1)
+- [x] `PUT /collections/:id` — rename / update emoji
+- [x] `DELETE /collections/:id`
+- [x] `POST /collections/:id/recipes` — add recipe
+- [x] `DELETE /collections/:id/recipes/:recipeId`
 
 ### Feedback channel
-- [ ] `Feedback` model — userId?, type (BUG|FEATURE_REQUEST|PRICE_ISSUE|GENERAL), subject?, body, appVersion?, platform?
-- [ ] `POST /feedback` — authenticated, rate limited 5/hr, stores in DB
-- [ ] Migration for Feedback table
+- [x] `Feedback` model — userId?, type (BUG|FEATURE_REQUEST|PRICE_ISSUE|GENERAL), subject?, body, appVersion?, platform?
+- [x] `POST /feedback` — authenticated, rate limited 5/hr, stores in DB
+- [x] Migration for Feedback table
 
 ### Referral UI (backend already built in Sprint 1)
-- [ ] `GET /referral/code` — confirm working end-to-end
-- [ ] `GET /referral/stats` — { invited, converted, totalBitesEarned }
+- [x] `GET /referral/code` — confirm working end-to-end
+- [x] `GET /referral/stats` — { invited, converted, totalBitesEarned }
 
 ---
 
 ## Mobile tasks
 
 ### Favourites
-- [ ] `FavouriteButton` component — heart toggle with Reanimated pop animation
-- [ ] `CollectionPicker` bottom sheet — list collections + "New collection" inline input
-- [ ] Wire to recipe detail screen
+- [x] `FavouriteButton` component — heart toggle
+- [ ] Reanimated pop animation polish
+- [x] `CollectionPicker` bottom sheet — list collections + "New collection" inline input
+- [x] Wire to recipe detail screen
 
 ### Saved screen
-- [ ] 3 tabs: Collections grid, All saved, Most cooked (sorted by timesCooked)
-- [ ] Collection detail screen — recipes within a collection
-- [ ] Rating + notes bottom sheet (long-press trigger on saved recipe card)
-- [ ] "Cook again" shortcut — adds recipe back to current week's plan in one tap
-- [ ] Empty state when no favourites yet
+- [x] 3 tabs: Collections grid, All saved, Most cooked (sorted by timesCooked)
+- [ ] Collection detail screen — separate route polish still open
+- [x] Rating + notes bottom sheet (long-press trigger on saved recipe card)
+- [x] "Cook again" shortcut — adds recipe back to current week's plan in one tap
+- [x] Empty state when no favourites yet
 
 ### Feedback channel
-- [ ] `FeedbackSheet` component — type picker (4 options), subject input, body multiline input, submit
-- [ ] Profile screen: "Send feedback" / "Contact us" button → opens FeedbackSheet
-- [ ] `scanner/success.tsx`: "Report wrong price" button → opens FeedbackSheet pre-filled with type=PRICE_ISSUE
-- [ ] Success toast: "Thanks! We'll review your feedback."
+- [x] `FeedbackSheet` component — type picker (4 options), subject input, body multiline input, submit
+- [x] Profile screen: "Send feedback" / "Contact us" button → opens FeedbackSheet
+- [x] `scanner/success.tsx`: "Report wrong price" button → opens FeedbackSheet pre-filled with type=PRICE_ISSUE
+- [x] Success toast: "Thanks! We'll review your feedback."
 
 ### Referral UI
-- [ ] Referral card in Profile screen — unique code + share button (native share sheet)
-- [ ] "X invited, Y converted" stats
+- [x] Referral card in Profile screen — unique code + share button (native share sheet)
+- [x] "X invited, Y converted" stats
 - [ ] Post-upgrade success screen: referral CTA "Share with a friend — you both earn 150 Bites"
 
 ---
@@ -79,3 +80,9 @@ type: project
 ✓ "Report wrong price" from scanner pre-fills type correctly
 ✓ Referral code visible and shareable from Profile
 ```
+
+## Remaining follow-up
+- Add the Reanimated heart pop animation on save
+- Split collections into a dedicated collection detail route instead of inline grouped cards
+- Add the post-upgrade referral CTA screen mentioned in the original scope
+- Sync mobile saved/collections state with the new API routes instead of local-only persistence

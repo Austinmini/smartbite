@@ -10,6 +10,7 @@ import {
   getMeal,
   regenerateMeal,
 } from '../services/mealPlanService'
+import { markActionComplete } from '../services/onboardingService'
 
 const TIER_LIMITS = {
   FREE: { mealPlansPerWeek: 2 },
@@ -68,6 +69,7 @@ export async function plansRoute(app: FastifyInstance) {
 
     // Save to DB
     const saved = await saveMealPlan(userId, planData, profile.servings)
+    await markActionComplete(userId, 'first_plan_generated')
 
     // Increment Redis counter; set TTL on first use (best-effort — Redis may be unavailable)
     try {

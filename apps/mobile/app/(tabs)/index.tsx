@@ -1,6 +1,6 @@
 import React from 'react'
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { useMealPlanStore } from '../../stores/mealPlanStore'
 import { useAuthStore } from '../../stores/authStore'
 import { MealPlanCard } from '../../components/MealPlanCard'
@@ -37,7 +37,7 @@ export default function HomeScreen() {
   const [completedActions, setCompletedActions] = React.useState<ChecklistActions>({
     profileComplete: false,
     firstPlanGenerated: false,
-    firstRecipeSaved: false,
+    firstRecipeCooked: false,
     firstScan: false,
     firstPurchase: false,
   })
@@ -65,22 +65,33 @@ export default function HomeScreen() {
       .catch(() => {})
   }, [token])
 
-  // Load onboarding checklist status from profile
-  React.useEffect(() => {
+  async function loadChecklistStatus() {
     if (!token) return
+
     apiClient.get<{ completedActions: string[] }>('/profile/checklist', token)
       .then((data) => {
         const actions = data.completedActions ?? []
         setCompletedActions({
           profileComplete: actions.includes('profile_complete'),
           firstPlanGenerated: actions.includes('first_plan_generated') || !!plan,
-          firstRecipeSaved: actions.includes('first_recipe_saved'),
+          firstRecipeCooked: actions.includes('first_recipe_cooked'),
           firstScan: actions.includes('first_scan'),
           firstPurchase: actions.includes('first_purchase'),
         })
       })
       .catch(() => {})
+  }
+
+  // Load onboarding checklist status from profile
+  React.useEffect(() => {
+    loadChecklistStatus()
   }, [token])
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadChecklistStatus()
+    }, [token, plan])
+  )
 
   async function dismissAnnouncement(id: string) {
     const updated = [...dismissedAnnouncements, id]
@@ -141,6 +152,7 @@ export default function HomeScreen() {
       }
       const body = await res.json()
       setPlan(body.plan)
+      await loadChecklistStatus()
     } catch (e: any) {
       setError(e.message ?? 'Plan generation temporarily unavailable. Try again in a few minutes.')
     } finally {

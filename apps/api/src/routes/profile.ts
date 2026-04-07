@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma'
 import { verifyJWT } from '../middleware/auth'
 import { V1_SUPPORTED_CHAINS } from '../data/txStores'
+import { markActionComplete, normalizeCompletedActions } from '../services/onboardingService'
 
 function validateRetailers(retailers: unknown): string | null {
   if (!Array.isArray(retailers)) return 'preferredRetailers must be an array'
@@ -72,7 +73,40 @@ export async function profileRoute(app: FastifyInstance) {
   app.get('/', auth, async (request, reply) => {
     const profile = await prisma.userProfile.findUnique({ where: { userId: request.userId } })
     if (!profile) return reply.status(404).send({ error: 'Profile not found' })
-    return reply.send({ profile })
+    return reply.send({
+      profile: {
+        ...profile,
+        completedActions: normalizeCompletedActions(profile.completedActions),
+      },
+    })
+  })
+
+  // GET /profile/checklist
+  app.get('/checklist', auth, async (request, reply) => {
+    const [profile, hasPlan, hasPurchase] = await Promise.all([
+      prisma.userProfile.findUnique({
+        where: { userId: request.userId },
+        select: { completedActions: true, scanCount: true },
+      }),
+      prisma.mealPlan.findFirst({
+        where: { userId: request.userId },
+        select: { id: true },
+      }),
+      prisma.purchaseHistory.findFirst({
+        where: { userId: request.userId },
+        select: { id: true },
+      }),
+    ])
+
+    if (!profile) return reply.status(404).send({ error: 'Profile not found' })
+
+    const completedActions = new Set(normalizeCompletedActions(profile.completedActions))
+    completedActions.add('profile_complete')
+    if (hasPlan) completedActions.add('first_plan_generated')
+    if ((profile.scanCount ?? 0) > 0) completedActions.add('first_scan')
+    if (hasPurchase) completedActions.add('first_purchase')
+
+    return reply.send({ completedActions: [...completedActions] })
   })
 
   // PUT /profile
@@ -138,6 +172,8 @@ export async function profileRoute(app: FastifyInstance) {
         servings: Number(servings ?? 2),
       },
     })
+
+    await markActionComplete(request.userId, 'profile_complete')
 
     return reply.send({ profile })
   })

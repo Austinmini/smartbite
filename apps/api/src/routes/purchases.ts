@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { verifyJWT } from '../middleware/auth'
 import { prisma } from '../lib/prisma'
+import { markActionComplete } from '../services/onboardingService'
 
 export async function purchasesRoute(app: FastifyInstance) {
   // ── POST /purchases ───────────────────────────────────────────────────────
@@ -68,6 +69,8 @@ export async function purchasesRoute(app: FastifyInstance) {
           planId: planId ?? null,
         },
       })
+
+      await markActionComplete(userId, 'first_purchase')
 
       return reply.status(201).send({ purchase })
     }

@@ -34,7 +34,7 @@ interface ScanConfirmParams {
 
 export default function ScanConfirmScreen() {
   const router = useRouter()
-  const params = useLocalSearchParams<ScanConfirmParams>()
+  const params = useLocalSearchParams() as unknown as ScanConfirmParams
   const { upc, storeName = 'Unknown Store', storeId, planId, itemKey } = params
 
   const [product, setProduct] = React.useState<ProductInfo | null>(null)

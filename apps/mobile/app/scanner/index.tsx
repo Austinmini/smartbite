@@ -10,7 +10,7 @@ interface ScannerParams {
 
 export default function ScannerScreen() {
   const router = useRouter()
-  const params = useLocalSearchParams<ScannerParams>()
+  const params = useLocalSearchParams() as unknown as ScannerParams
   const [permission, requestPermission] = useCameraPermissions()
   const [scanned, setScanned] = React.useState(false)
 

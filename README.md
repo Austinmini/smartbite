@@ -225,12 +225,18 @@ cp apps/api/.env.example apps/api/.env
 ### Sprint 6 — Favourites + collections
 > "I can save recipes I love and organise them"
 
-- [ ] Favourites CRUD — `POST/DELETE /favourites`, `PUT /favourites/:recipeId`
-- [ ] Collections CRUD — `GET/POST/PUT/DELETE /collections`, add/remove recipes
-- [ ] `FavouriteButton` — heart toggle with Reanimated pop animation
-- [ ] `CollectionPicker` bottom sheet
-- [ ] Saved screen — Collections grid, All saved, Most cooked tabs
-- [ ] Rating + notes bottom sheet, "Cook again" shortcut
+- [x] Favourites CRUD — `POST/DELETE /favourites`, `PUT /favourites/:recipeId`, `GET /favourites`
+- [x] Collections CRUD — `GET/POST/PUT/DELETE /collections`, add/remove recipes
+- [x] `FavouriteButton` — heart toggle
+- [ ] Reanimated pop animation polish
+- [x] `CollectionPicker` bottom sheet
+- [x] Saved screen — collections/all saved/most cooked tabs
+- [x] Rating + notes bottom sheet, "Cook again" shortcut
+- [x] `Feedback` model + `POST /feedback`
+- [x] `FeedbackSheet` wired from Profile and scanner success
+- [x] Referral code/stats surfaced in Profile with native share sheet
+- [ ] Dedicated collection detail route polish
+- [ ] Post-upgrade referral CTA screen
 
 ---
 
@@ -279,11 +285,11 @@ Result: scanning the same item twice (e.g. eggs every week) shows product info b
 ### Feedback channel (cross-cutting, implement in Sprint 6)
 > "Users can report bugs, wrong prices, and request features from the app"
 
-- [ ] `Feedback` model — type (BUG|FEATURE_REQUEST|PRICE_ISSUE|GENERAL), subject, body, appVersion, platform
-- [ ] `POST /feedback` — authenticated, rate limited 5/hr
-- [ ] `FeedbackSheet` component — type picker, subject + body inputs, submit
-- [ ] Profile screen: "Send feedback" entry point
-- [ ] Scanner success: "Report wrong price" shortcut (pre-fills type=PRICE_ISSUE)
+- [x] `Feedback` model — type (BUG|FEATURE_REQUEST|PRICE_ISSUE|GENERAL), subject, body, appVersion, platform
+- [x] `POST /feedback` — authenticated, rate limited 5/hr
+- [x] `FeedbackSheet` component — type picker, subject + body inputs, submit
+- [x] Profile screen: "Send feedback" entry point
+- [x] Scanner success: "Report wrong price" shortcut (pre-fills type=PRICE_ISSUE)
 
 ---
 
@@ -292,8 +298,9 @@ Result: scanning the same item twice (e.g. eggs every week) shows product info b
 
 **Onboarding checklist (home screen card, disappears when all done)**
 - [x] `completedActions String[]` field on UserProfile
-- [ ] `markActionComplete()` helper wired to: `POST /plans/generate`, `POST /prices/observation`, `POST /favourites`, `POST /pantry`, `POST /recipes/:id/cooked`
-- [ ] `OnboardingChecklist` component — progress bar, 5 action rows with CTAs, auto-hides on completion
+- [x] `markActionComplete()` helper wired to: `PUT /profile`, `POST /plans/generate`, `POST /prices/observation`, `POST /purchases`, `POST /recipes/:id/cooked`
+- [x] `OnboardingChecklist` component — progress bar, 5 action rows, auto-hides on completion
+- [x] `GET /profile/checklist` route for home-screen progress refresh
 
 **Did You Know tips (contextual, per-screen)**
 - [ ] `TipBanner` component — dismissible strip with emoji + text

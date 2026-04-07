@@ -1,6 +1,9 @@
 import React from 'react'
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
+import { FeedbackSheet } from '../../components/FeedbackSheet'
+import { apiClient } from '../../lib/apiClient'
+import { useAuthStore } from '../../stores/authStore'
 
 interface SuccessParams {
   productName: string
@@ -12,7 +15,9 @@ interface SuccessParams {
 
 export default function ScanSuccessScreen() {
   const router = useRouter()
-  const { productName, storeName, price, planId } = useLocalSearchParams<SuccessParams>()
+  const { productName, storeName, price, planId } = useLocalSearchParams() as unknown as SuccessParams
+  const token = useAuthStore((state) => state.token)
+  const [feedbackVisible, setFeedbackVisible] = React.useState(false)
 
   function handleDone() {
     if (planId) {
@@ -26,7 +31,22 @@ export default function ScanSuccessScreen() {
     router.replace('/scanner')
   }
 
+  async function handleSubmitFeedback(payload: {
+    type: 'BUG' | 'FEATURE_REQUEST' | 'PRICE_ISSUE' | 'GENERAL'
+    subject?: string
+    body: string
+  }) {
+    try {
+      await apiClient.post('/feedback', payload, token ?? undefined)
+      setFeedbackVisible(false)
+      Alert.alert('Thanks!', "We'll review your feedback.")
+    } catch (err: any) {
+      Alert.alert('Could not send feedback', err.message ?? 'Please try again.')
+    }
+  }
+
   return (
+    <>
     <View style={styles.container}>
       {/* Celebration */}
       <View style={styles.iconRing}>
@@ -63,7 +83,20 @@ export default function ScanSuccessScreen() {
       <TouchableOpacity style={styles.secondaryBtn} onPress={handleScanAnother}>
         <Text style={styles.secondaryBtnText}>Scan another item</Text>
       </TouchableOpacity>
+
+      <TouchableOpacity style={styles.secondaryBtn} onPress={() => setFeedbackVisible(true)}>
+        <Text style={styles.secondaryBtnText}>Report wrong price</Text>
+      </TouchableOpacity>
     </View>
+    <FeedbackSheet
+      visible={feedbackVisible}
+      onClose={() => setFeedbackVisible(false)}
+      onSubmit={handleSubmitFeedback}
+      initialType="PRICE_ISSUE"
+      initialSubject={`${productName} price issue`}
+      initialBody={`Wrong price reported for ${productName} at ${storeName}. Expected review for $${price}.`}
+    />
+    </>
   )
 }
 

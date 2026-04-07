@@ -5,7 +5,7 @@ import { OnboardingChecklist } from '../OnboardingChecklist'
 const allIncomplete = {
   profileComplete: false,
   firstPlanGenerated: false,
-  firstRecipeSaved: false,
+  firstRecipeCooked: false,
   firstScan: false,
   firstPurchase: false,
 }
@@ -13,7 +13,7 @@ const allIncomplete = {
 const allComplete = {
   profileComplete: true,
   firstPlanGenerated: true,
-  firstRecipeSaved: true,
+  firstRecipeCooked: true,
   firstScan: true,
   firstPurchase: true,
 }
