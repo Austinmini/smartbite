@@ -32,7 +32,7 @@ Mobile-first app that helps communities eat well within their budget. AI-generat
 | API | Fastify, TypeScript, Prisma, PostgreSQL (Supabase) |
 | AI | Anthropic Claude (`claude-sonnet-4-6`) |
 | Pricing | Community crowdsourced (`PriceObservation` → `CanonicalPrice` pipeline) |
-| Barcode lookup | Open Food Facts + USDA FoodData Central (free, no key) |
+| Barcode lookup | Open Food Facts + USDA FoodData Central (parallel fan-out, merged, client-cached) |
 | Auth | Supabase Auth |
 | Jobs | BullMQ + Redis |
 | Payments | RevenueCat |
@@ -244,6 +244,25 @@ cp apps/api/.env.example apps/api/.env
 - [ ] RevenueCat SDK + introductory offer (7-day free trial on Pro SKU)
 - [ ] Trial banner "Pro Trial · X days left", paywall screen, restore purchases
 - [ ] `TierGatePrompt` — contextual upgrade prompts with post-trial framing
+
+---
+
+### Barcode product lookup pipeline (enhance in Sprint 5)
+> "Scan a barcode and the product name, brand, image, and unit size are pre-filled instantly"
+
+**Server — parallel multi-source (replacing current single-source + hard 404)**
+- [ ] `src/lib/usda.ts` — USDA FoodData Central client (free API key, 3600 req/hr)
+- [ ] `products.ts` — fan out OFF + USDA in parallel, merge best fields, never return 404 for a real UPC (return partial data)
+- [ ] Add `nutrition`, `ingredients`, `category` fields to Item table
+- [ ] Add `USDA_API_KEY` to `.env.example`
+
+Merge strategy: OFF wins on image + brand; USDA wins on nutrition + US-specific coverage (HEB store brands, regional TX products).
+
+**Client — AsyncStorage cache for instant repeat scans**
+- [ ] `stores/productCacheStore.ts` — Zustand + AsyncStorage, 30-day TTL, max 500 items LRU
+- [ ] `scanner/confirm.tsx` — check local cache first (works offline), fall back to API
+
+Result: scanning the same item twice (e.g. eggs every week) shows product info before any network call.
 
 ---
 
