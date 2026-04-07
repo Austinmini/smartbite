@@ -7,6 +7,7 @@ import { NutritionCard } from '../../components/NutritionCard'
 import { PriceCompareBar } from '../../components/PriceCompareBar'
 import { BestStoreCard } from '../../components/BestStoreCard'
 import { apiClient } from '../../lib/apiClient'
+import { getApiBaseUrl } from '../../lib/apiBaseUrl'
 import { FavouriteButton } from '../../components/FavouriteButton'
 import { CollectionPicker } from '../../components/CollectionPicker'
 import { useSavedRecipesStore } from '../../stores/savedRecipesStore'
@@ -49,7 +50,7 @@ interface PriceScanResponse {
   message?: string
 }
 
-const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'
+const API_BASE = getApiBaseUrl()
 
 export default function RecipeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()

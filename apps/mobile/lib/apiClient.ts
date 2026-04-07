@@ -1,7 +1,8 @@
 import { supabase } from './supabase'
 import { useAuthStore } from '../stores/authStore'
+import { getApiBaseUrl } from './apiBaseUrl'
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'
+const BASE_URL = getApiBaseUrl()
 
 async function getToken(): Promise<string | undefined> {
   const { data } = await supabase.auth.getSession()
@@ -26,7 +27,16 @@ async function request<T>(
   }
   if (token) headers['Authorization'] = `Bearer ${token}`
 
-  const res = await fetch(`${BASE_URL}${path}`, { ...rest, headers })
+  let res: Response
+  try {
+    res = await fetch(`${BASE_URL}${path}`, { ...rest, headers })
+  } catch (error: any) {
+    throw Object.assign(
+      new Error(`Network request failed. API base URL: ${BASE_URL}`),
+      { cause: error }
+    )
+  }
+
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
     throw Object.assign(new Error(body.error ?? res.statusText), { status: res.status })

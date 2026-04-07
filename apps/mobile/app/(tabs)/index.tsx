@@ -8,12 +8,13 @@ import { OnboardingChecklist } from '../../components/OnboardingChecklist'
 import { TipBanner } from '../../components/TipBanner'
 import { AnnouncementBanner } from '../../components/AnnouncementBanner'
 import { apiClient } from '../../lib/apiClient'
+import { getApiBaseUrl } from '../../lib/apiBaseUrl'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import type { PlanMeal } from '../../stores/mealPlanStore'
 import type { Announcement } from '../../components/AnnouncementBanner'
 import type { ChecklistActions } from '../../components/OnboardingChecklist'
 
-const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'
+const API_BASE = getApiBaseUrl()
 
 const CONTEXTUAL_TIPS = [
   { id: 'tip-scan', text: 'Scan a barcode in the shopping list to report prices and earn Bites.' },
