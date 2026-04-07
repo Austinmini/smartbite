@@ -9,6 +9,7 @@ import {
   scanPrices,
 } from '../services/pricingService'
 import { processScanReward } from '../services/rewardsService'
+import { getPriceTrend, getAiPriceSuggestion } from '../services/priceTrendService'
 
 const TIER_STORE_LIMITS = {
   FREE: 1,
@@ -120,6 +121,131 @@ export async function pricesRoute(app: FastifyInstance) {
       const bites = await processScanReward(userId, observation as any)
 
       return reply.status(201).send({ observationId: observation.id, bites })
+    }
+  )
+
+  // ── GET /prices/trends ────────────────────────────────────────────────────────
+
+  app.get<{ Querystring: { ingredient?: string; storeId?: string; days?: string } }>(
+    '/trends',
+    {
+      preHandler: verifyJWT,
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+      const userId = (request as any).userId as string
+      const { ingredient, storeId, days } = request.query
+
+      if (!ingredient) return reply.status(400).send({ error: 'ingredient is required' })
+      if (!storeId) return reply.status(400).send({ error: 'storeId is required' })
+
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { tier: true } })
+      if (!user) return reply.status(401).send({ error: 'User not found' })
+      if (user.tier !== 'PRO') return reply.status(403).send({ error: 'Price trends require a Pro subscription' })
+
+      const trends = await getPriceTrend({
+        ingredient,
+        storeId,
+        days: days ? parseInt(days, 10) : 30,
+      })
+
+      return reply.status(200).send({ trends })
+    }
+  )
+
+  // ── GET /prices/suggestion ────────────────────────────────────────────────────
+
+  app.get<{ Querystring: { ingredient?: string; storeId?: string } }>(
+    '/suggestion',
+    {
+      preHandler: verifyJWT,
+      config: { rateLimit: { max: 20, timeWindow: '1 hour' } },
+    },
+    async (request, reply) => {
+      const userId = (request as any).userId as string
+      const { ingredient, storeId } = request.query
+
+      if (!ingredient) return reply.status(400).send({ error: 'ingredient is required' })
+      if (!storeId) return reply.status(400).send({ error: 'storeId is required' })
+
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { tier: true } })
+      if (!user) return reply.status(401).send({ error: 'User not found' })
+      if (user.tier !== 'PRO') return reply.status(403).send({ error: 'AI price suggestions require a Pro subscription' })
+
+      const trendData = await getPriceTrend({ ingredient, storeId, days: 30 })
+      const suggestion = await getAiPriceSuggestion({ ingredient, storeId, trendData })
+
+      return reply.status(200).send(suggestion)
+    }
+  )
+
+  // ── POST /prices/alert ────────────────────────────────────────────────────────
+
+  app.post<{ Body: { recipeId?: string; targetPrice?: number } }>(
+    '/alert',
+    {
+      preHandler: verifyJWT,
+      config: { rateLimit: { max: 20, timeWindow: '1 hour' } },
+    },
+    async (request, reply) => {
+      const userId = (request as any).userId as string
+      const { recipeId, targetPrice } = request.body ?? {}
+
+      if (!recipeId) return reply.status(400).send({ error: 'recipeId is required' })
+      if (typeof targetPrice !== 'number' || targetPrice < 0)
+        return reply.status(400).send({ error: 'targetPrice must be a non-negative number' })
+
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { tier: true } })
+      if (!user) return reply.status(401).send({ error: 'User not found' })
+      if (user.tier === 'FREE') return reply.status(403).send({ error: 'Price alerts require Plus or Pro subscription' })
+
+      const alert = await prisma.priceAlert.create({
+        data: { userId, recipeId, targetPrice },
+      })
+
+      return reply.status(201).send(alert)
+    }
+  )
+
+  // ── GET /prices/alerts ────────────────────────────────────────────────────────
+
+  app.get(
+    '/alerts',
+    {
+      preHandler: verifyJWT,
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+      const userId = (request as any).userId as string
+
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { tier: true } })
+      if (!user) return reply.status(401).send({ error: 'User not found' })
+      if (user.tier === 'FREE') return reply.status(403).send({ error: 'Price alerts require Plus or Pro subscription' })
+
+      const alerts = await prisma.priceAlert.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+      })
+
+      return reply.status(200).send({ alerts })
+    }
+  )
+
+  // ── DELETE /prices/alerts/:id ─────────────────────────────────────────────────
+
+  app.delete<{ Params: { id: string } }>(
+    '/alerts/:id',
+    { preHandler: verifyJWT },
+    async (request, reply) => {
+      const userId = (request as any).userId as string
+
+      const alert = await prisma.priceAlert.findFirst({
+        where: { id: request.params.id, userId },
+      })
+      if (!alert) return reply.status(404).send({ error: 'Alert not found' })
+
+      await prisma.priceAlert.delete({ where: { id: request.params.id } })
+      return reply.status(200).send({ success: true })
     }
   )
 

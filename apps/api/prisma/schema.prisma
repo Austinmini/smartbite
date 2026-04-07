@@ -19,6 +19,8 @@ model User {
   // Subscription
   tier             Tier      @default(FREE)
   revenueCatUserId String?
+  trialEndsAt      DateTime?
+  hasUsedTrial     Boolean   @default(false)
 
   // Profile
   profile          UserProfile?
@@ -50,6 +52,9 @@ model User {
   referralsMade    ReferralEvent[]   @relation("referrer")
   referredBy       ReferralEvent?    @relation("referred")
   promoRedemptions PromoRedemption[]
+
+  // Reminders
+  purchaseReminders PurchaseReminder[]
 }
 
 model UserProfile {
@@ -76,6 +81,9 @@ model UserProfile {
   scanCount          Int      @default(0)
   priceContributions Int      @default(0)
   contributorScore   Float    @default(1.0)
+
+  // Onboarding checklist
+  completedActions   String[] @default([])
 }
 
 model FamilyProfile {
@@ -478,4 +486,55 @@ model PantryLedger {
   createdAt    DateTime     @default(now())
 
   @@index([pantryItemId, createdAt])
+}
+
+// ── Purchase reminders (Pro) ──────────────────────────────────────────────────
+model PurchaseReminder {
+  id             String       @id @default(cuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  itemName       String
+  itemCategory   ItemCategory @default(GROCERY)
+  quantity       Float
+  unit           String
+  frequencyDays  Int
+  lastRemindedAt DateTime?
+  nextRemindAt   DateTime
+  active         Boolean      @default(true)
+  source         String       @default("manual") // "manual" | "ai_suggested" | "rule_suggested"
+  reasoning      String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([userId, itemName])
+  @@index([userId, nextRemindAt])
+  @@index([userId, itemCategory])
+}
+
+// ── Announcements ─────────────────────────────────────────────────────────────
+model Announcement {
+  id           String            @id @default(cuid())
+  title        String
+  body         String
+  type         AnnouncementType
+  style        AnnouncementStyle
+  targetTiers  String[]          // ["FREE", "PLUS", "PRO"] or subset
+  ctaText      String?
+  ctaDeepLink  String?
+  startsAt     DateTime          @default(now())
+  endsAt       DateTime?
+  active       Boolean           @default(true)
+  createdAt    DateTime          @default(now())
+}
+
+enum AnnouncementType {
+  BANNER
+  MODAL
+}
+
+enum AnnouncementStyle {
+  INFO
+  SUCCESS
+  WARNING
+  PROMO
 }

@@ -1,5 +1,6 @@
 import { anthropic } from '../lib/anthropic'
 import { prisma } from '../lib/prisma'
+import { AI_MODELS } from '../lib/aiConfig'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -13,6 +14,7 @@ export interface GeneratePlanInput {
     servings: number
   }
   weekBudget: number
+  tier?: 'FREE' | 'PLUS' | 'PRO'
   favourites?: Array<{ title: string; timesCooked: number; userRating: number | null }>
 }
 
@@ -82,7 +84,7 @@ function parseJsonResponse<T>(rawText: string): T {
 }
 
 export async function generateMealPlan(input: GeneratePlanInput): Promise<GeneratedPlan> {
-  const { profile, weekBudget, favourites } = input
+  const { profile, weekBudget, favourites, tier } = input
 
   const favouritesContext =
     favourites && favourites.length > 0
@@ -132,9 +134,11 @@ Respond ONLY with a valid JSON object in this exact shape:
   ]
 }`
 
+  const maxTokens = tier === 'FREE' ? 5000 : 8000
+
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 5000,
+    model: AI_MODELS.MEAL_PLAN,
+    max_tokens: maxTokens,
     messages: [{ role: 'user', content: prompt }],
   })
 
