@@ -28,6 +28,7 @@ interface ShoppingListItem {
   amount: number
   unit: string
   lastPurchase: LastPurchase | null
+  trendDirection: 'up' | 'down' | 'stable' | null
 }
 
 interface ShoppingListResponse {
@@ -81,7 +82,9 @@ export default function ShoppingListScreen() {
   }, [planId, token])
 
   function openConfirmSheet(item: ShoppingListItem, storeName: string) {
-    setConfirmQty(String(item.amount))
+    // Pre-fill from last purchase if available ("add same amount?")
+    const prefillQty = item.lastPurchase ? String(item.lastPurchase.quantity) : String(item.amount)
+    setConfirmQty(prefillQty)
     setConfirmPrice('')
     setConfirmSheet({ item, storeName })
   }
@@ -200,9 +203,20 @@ export default function ShoppingListScreen() {
                     {checked && <Text style={styles.checkmark}>✓</Text>}
                   </View>
                   <View style={styles.itemContent}>
-                    <Text style={[styles.itemText, checked && styles.itemTextChecked]}>
-                      {item.amount} {item.unit} {item.ingredient}
-                    </Text>
+                    <View style={styles.itemNameRow}>
+                      <Text style={[styles.itemText, checked && styles.itemTextChecked]}>
+                        {item.amount} {item.unit} {item.ingredient}
+                      </Text>
+                      {item.trendDirection === 'up' && !checked && (
+                        <Text style={styles.trendUp} testID={`trend-up-${item.key}`}>↑</Text>
+                      )}
+                      {item.trendDirection === 'down' && !checked && (
+                        <Text style={styles.trendDown} testID={`trend-down-${item.key}`}>↓</Text>
+                      )}
+                      {item.trendDirection === 'stable' && !checked && (
+                        <Text style={styles.trendStable} testID={`trend-stable-${item.key}`}>→</Text>
+                      )}
+                    </View>
                     {item.lastPurchase && !checked && (
                       <Text style={styles.lastPurchaseBadge}>
                         Last bought: {item.lastPurchase.quantity} {item.lastPurchase.unit} @ {item.lastPurchase.storeName}
@@ -305,8 +319,12 @@ const styles = StyleSheet.create({
   checkboxChecked: { backgroundColor: '#22c55e', borderColor: '#22c55e' },
   checkmark: { color: '#fff', fontSize: 12, fontWeight: '700' },
   itemContent: { flex: 1 },
-  itemText: { fontSize: 15, color: '#111827' },
+  itemNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  itemText: { fontSize: 15, color: '#111827', flex: 1 },
   itemTextChecked: { textDecorationLine: 'line-through', color: '#6b7280' },
+  trendUp: { fontSize: 14, color: '#ef4444', fontWeight: '700' },
+  trendDown: { fontSize: 14, color: '#22c55e', fontWeight: '700' },
+  trendStable: { fontSize: 14, color: '#6b7280', fontWeight: '700' },
   lastPurchaseBadge: {
     fontSize: 12, color: '#6b7280', marginTop: 3,
     backgroundColor: '#f3f4f6', paddingHorizontal: 8, paddingVertical: 2,

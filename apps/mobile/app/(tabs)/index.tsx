@@ -4,14 +4,98 @@ import { useRouter } from 'expo-router'
 import { useMealPlanStore } from '../../stores/mealPlanStore'
 import { useAuthStore } from '../../stores/authStore'
 import { MealPlanCard } from '../../components/MealPlanCard'
+import { OnboardingChecklist } from '../../components/OnboardingChecklist'
+import { TipBanner } from '../../components/TipBanner'
+import { AnnouncementBanner } from '../../components/AnnouncementBanner'
+import { apiClient } from '../../lib/apiClient'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import type { PlanMeal } from '../../stores/mealPlanStore'
+import type { Announcement } from '../../components/AnnouncementBanner'
+import type { ChecklistActions } from '../../components/OnboardingChecklist'
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'
+
+const CONTEXTUAL_TIPS = [
+  { id: 'tip-scan', text: 'Scan a barcode in the shopping list to report prices and earn Bites.' },
+  { id: 'tip-favourites', text: 'Heart a recipe to save it. Your favourites improve future meal plans.' },
+  { id: 'tip-pantry', text: 'Mark a recipe as cooked and the app will deduct ingredients from your pantry automatically.' },
+  { id: 'tip-reminders', text: 'Set reminders for staples like eggs or milk in the Reminders screen.' },
+  { id: 'tip-split', text: 'The 2-store split view shows you when shopping at two stores saves $3 or more.' },
+  { id: 'tip-alerts', text: 'Set a price alert on any recipe and get notified when the cost drops.' },
+  { id: 'tip-budget', text: 'Update your weekly budget in Profile to keep meal plans within your target.' },
+]
 
 export default function HomeScreen() {
   const router = useRouter()
   const { plan, isGenerating, error, setPlan, clearPlan, setGenerating, setError } = useMealPlanStore()
   const token = useAuthStore((s) => s.token)
+  const user = useAuthStore((s) => s.user)
+
+  const [announcements, setAnnouncements] = React.useState<Announcement[]>([])
+  const [dismissedAnnouncements, setDismissedAnnouncements] = React.useState<string[]>([])
+  const [dismissedTips, setDismissedTips] = React.useState<string[]>([])
+  const [completedActions, setCompletedActions] = React.useState<ChecklistActions>({
+    profileComplete: false,
+    firstPlanGenerated: false,
+    firstRecipeSaved: false,
+    firstScan: false,
+    firstPurchase: false,
+  })
+
+  // Load dismissed state from AsyncStorage
+  React.useEffect(() => {
+    async function loadDismissed() {
+      try {
+        const [annRaw, tipsRaw] = await Promise.all([
+          AsyncStorage.getItem('dismissed_announcements'),
+          AsyncStorage.getItem('dismissed_tips'),
+        ])
+        if (annRaw) setDismissedAnnouncements(JSON.parse(annRaw))
+        if (tipsRaw) setDismissedTips(JSON.parse(tipsRaw))
+      } catch {}
+    }
+    loadDismissed()
+  }, [])
+
+  // Load announcements from API
+  React.useEffect(() => {
+    if (!token) return
+    apiClient.get<{ announcements: Announcement[] }>('/announcements', token)
+      .then((data) => setAnnouncements(data.announcements ?? []))
+      .catch(() => {})
+  }, [token])
+
+  // Load onboarding checklist status from profile
+  React.useEffect(() => {
+    if (!token) return
+    apiClient.get<{ completedActions: string[] }>('/profile/checklist', token)
+      .then((data) => {
+        const actions = data.completedActions ?? []
+        setCompletedActions({
+          profileComplete: actions.includes('profile_complete'),
+          firstPlanGenerated: actions.includes('first_plan_generated') || !!plan,
+          firstRecipeSaved: actions.includes('first_recipe_saved'),
+          firstScan: actions.includes('first_scan'),
+          firstPurchase: actions.includes('first_purchase'),
+        })
+      })
+      .catch(() => {})
+  }, [token])
+
+  async function dismissAnnouncement(id: string) {
+    const updated = [...dismissedAnnouncements, id]
+    setDismissedAnnouncements(updated)
+    await AsyncStorage.setItem('dismissed_announcements', JSON.stringify(updated))
+  }
+
+  async function dismissTip(tipId: string) {
+    const updated = [...dismissedTips, tipId]
+    setDismissedTips(updated)
+    await AsyncStorage.setItem('dismissed_tips', JSON.stringify(updated))
+  }
+
+  const visibleAnnouncements = announcements.filter((a) => !dismissedAnnouncements.includes(a.id))
+  const nextTip = CONTEXTUAL_TIPS.find((t) => !dismissedTips.includes(t.id)) ?? null
 
   // Sync plan from server on mount — ensures the local store always reflects the
   // current user's plan, not a stale plan cached from a previous session/account.
@@ -70,8 +154,21 @@ export default function HomeScreen() {
 
   return (
     <ScrollView style={styles.container} testID="home-screen" contentContainerStyle={styles.content}>
+      {/* Announcements */}
+      {visibleAnnouncements.map((ann) => (
+        <AnnouncementBanner key={ann.id} announcement={ann} onDismiss={dismissAnnouncement} />
+      ))}
+
       <Text style={styles.title}>SmartBite</Text>
       <Text style={styles.subtitle}>Your weekly meal plan</Text>
+
+      {/* Onboarding checklist — auto-hides when all done */}
+      <OnboardingChecklist completedActions={completedActions} />
+
+      {/* Contextual tip banner */}
+      {nextTip && (
+        <TipBanner tipId={nextTip.id} text={nextTip.text} onDismiss={dismissTip} />
+      )}
 
       {error && (
         <View style={styles.errorBox}>

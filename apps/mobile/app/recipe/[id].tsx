@@ -8,6 +8,13 @@ import { PriceCompareBar } from '../../components/PriceCompareBar'
 import { BestStoreCard } from '../../components/BestStoreCard'
 import { apiClient } from '../../lib/apiClient'
 
+interface PriceAlert {
+  id: string
+  recipeId: string
+  targetPrice: number
+  triggered: boolean
+}
+
 interface PriceItem {
   ingredient: string
   price: number
@@ -63,6 +70,14 @@ export default function RecipeDetailScreen() {
   const [priceLoading, setPriceLoading] = React.useState(false)
   const [priceError, setPriceError] = React.useState<string | null>(null)
 
+  // Price alerts
+  const [alerts, setAlerts] = React.useState<PriceAlert[]>([])
+  const [alertTarget, setAlertTarget] = React.useState('')
+  const [alertSheetVisible, setAlertSheetVisible] = React.useState(false)
+  const [savingAlert, setSavingAlert] = React.useState(false)
+  const user = useAuthStore((s) => s.user)
+  const canSetAlerts = user?.tier === 'PLUS' || user?.tier === 'PRO'
+
   // Find meal by id
   const meal = plan?.meals.find((m) => m.id === id)
 
@@ -100,6 +115,36 @@ export default function RecipeDetailScreen() {
       active = false
     }
   }, [meal, plan, token])
+
+  React.useEffect(() => {
+    if (!meal || !token || !canSetAlerts) return
+    apiClient.get<{ alerts: PriceAlert[] }>(`/prices/alerts?recipeId=${meal.recipe.id}`, token)
+      .then((data) => setAlerts(data.alerts))
+      .catch(() => {})
+  }, [meal, token, canSetAlerts])
+
+  async function handleSaveAlert() {
+    if (!meal) return
+    const target = parseFloat(alertTarget)
+    if (!target || target <= 0) {
+      Alert.alert('Invalid price', 'Enter a valid target price.')
+      return
+    }
+    setSavingAlert(true)
+    try {
+      const data = await apiClient.post<{ alert: PriceAlert }>('/prices/alert', {
+        recipeId: meal.recipe.id,
+        targetPrice: target,
+      }, token!)
+      setAlerts((prev) => [...prev, data.alert])
+      setAlertSheetVisible(false)
+      setAlertTarget('')
+    } catch (err: any) {
+      Alert.alert('Could not save alert', err.message ?? 'Please try again.')
+    } finally {
+      setSavingAlert(false)
+    }
+  }
 
   async function handleRegenerate() {
     if (!meal || !plan) return
@@ -300,6 +345,32 @@ export default function RecipeDetailScreen() {
         ) : null}
       </View>
 
+      {/* Price alerts */}
+      {canSetAlerts && (
+        <View style={styles.section} testID="price-alerts-section">
+          <View style={styles.alertHeader}>
+            <Text style={styles.sectionTitle}>Price alerts</Text>
+            <TouchableOpacity
+              testID="set-alert-btn"
+              style={styles.setAlertBtn}
+              onPress={() => setAlertSheetVisible(true)}
+            >
+              <Text style={styles.setAlertBtnText}>+ Set alert</Text>
+            </TouchableOpacity>
+          </View>
+          {alerts.length === 0 ? (
+            <Text style={styles.alertEmpty}>No active alerts. Set a target price to get notified when this recipe drops.</Text>
+          ) : (
+            alerts.map((alert) => (
+              <View key={alert.id} style={styles.alertRow} testID={`alert-row-${alert.id}`}>
+                <Text style={styles.alertText}>Alert at ~${alert.targetPrice.toFixed(2)}</Text>
+                {alert.triggered && <Text style={styles.alertTriggered}>Triggered ✓</Text>}
+              </View>
+            ))
+          )}
+        </View>
+      )}
+
       {/* Instructions */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Instructions</Text>
@@ -368,6 +439,38 @@ export default function RecipeDetailScreen() {
         Nutritional information is approximate. Consult a healthcare provider for dietary advice.
       </Text>
     </ScrollView>
+
+    {/* Price alert sheet */}
+    <Modal visible={alertSheetVisible} animationType="slide" transparent onRequestClose={() => setAlertSheetVisible(false)}>
+      <View style={styles.sheetOverlay}>
+        <View style={styles.sheet}>
+          <Text style={styles.sheetTitle}>Set a price alert</Text>
+          <Text style={styles.sheetSubtitle}>Notify me when this recipe's total cost drops to:</Text>
+          <TextInput
+            testID="alert-target-input"
+            style={styles.input}
+            value={alertTarget}
+            onChangeText={setAlertTarget}
+            keyboardType="decimal-pad"
+            placeholder="e.g. 14.99"
+          />
+          <TouchableOpacity
+            testID="save-alert-btn"
+            style={[styles.confirmBtn, savingAlert && styles.confirmBtnDisabled]}
+            onPress={handleSaveAlert}
+            disabled={savingAlert}
+          >
+            {savingAlert
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={styles.confirmBtnText}>Set alert</Text>
+            }
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.cancelBtn} onPress={() => setAlertSheetVisible(false)}>
+            <Text style={styles.cancelBtnText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
 
     {/* Servings picker sheet */}
     <Modal visible={cookSheet} animationType="slide" transparent onRequestClose={() => setCookSheet(false)}>
@@ -540,4 +643,13 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
     lineHeight: 16,
   },
+  alertHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  setAlertBtn: {
+    backgroundColor: '#dcfce7', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, minHeight: 32,
+  },
+  setAlertBtnText: { fontSize: 13, fontWeight: '600', color: '#16a34a' },
+  alertEmpty: { fontSize: 13, color: '#9ca3af', lineHeight: 18 },
+  alertRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e5e7eb' },
+  alertText: { fontSize: 14, color: '#374151' },
+  alertTriggered: { fontSize: 12, color: '#22c55e', fontWeight: '600' },
 })
