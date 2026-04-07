@@ -1327,33 +1327,33 @@ checkable.
 - Rewards tab (5th nav item) — Bites balance, streak flame, badges, leaderboard
 
 **Backend tasks:**
-- [ ] `GET /products/lookup/:upc` — Open Food Facts → USDA → Product table cache
-- [ ] `POST /prices/observation` — write scan to `PriceObservation`, trigger canonical recompute
-- [ ] `processScanReward` service — base + pioneer + stale + streak Bites logic
-- [ ] Canonical price recompute job (BullMQ) — weighted median from last 7 days of observations
-- [ ] `POST /purchases` — record a purchase; auto-calls `POST /pantry/sync-purchase`
-- [ ] `GET /purchases?ingredientName=` — purchase history for a specific ingredient
-- [ ] `GET /shopping-list/:planId` updated — include `lastPurchase` per ingredient
-- [ ] Pantry CRUD — `GET/POST/PUT/DELETE /pantry`
-- [ ] `POST /pantry/sync-purchase` — add purchased quantity to pantry item (upsert + ledger entry)
-- [ ] `GET /pantry/check?ingredients=` — coverage check for recipe detail
-- [ ] `POST /recipes/:id/cooked` — scale + deduct ingredients, write ledger, increment timesCooked
-- [ ] `GET /rewards/balance`, `/rewards/ledger`, `/rewards/leaderboard`, `/rewards/badges`
-- [ ] `GET /community/impact` — aggregate savings stats, cached hourly per city
+- [x] `GET /products/lookup/:upc` — Open Food Facts → USDA → Product table cache
+- [x] `POST /prices/observation` — write scan to `PriceObservation`, trigger canonical recompute
+- [x] `processScanReward` service — base + pioneer + stale + streak Bites logic
+- [x] Canonical price recompute job (BullMQ) — weighted median from last 7 days of observations
+- [x] `POST /purchases` — record a purchase; auto-calls `POST /pantry/sync-purchase`
+- [x] `GET /purchases?ingredientName=` — purchase history for a specific ingredient
+- [x] `GET /shopping-list/:planId` updated — include `lastPurchase` per ingredient
+- [x] Pantry CRUD — `GET/POST/PUT/DELETE /pantry`
+- [x] `POST /pantry/sync-purchase` — add purchased quantity to pantry item (upsert + ledger entry)
+- [x] `GET /pantry/check?ingredients=` — coverage check for recipe detail
+- [x] `POST /recipes/:id/cooked` — scale + deduct ingredients, write ledger, increment timesCooked
+- [x] `GET /rewards/balance`, `/rewards/ledger`, `/rewards/leaderboard`, `/rewards/badges`
+- [x] `GET /community/impact` — aggregate savings stats, cached hourly per city
 
 **Mobile tasks:**
-- [ ] Scanner screen — Vision Camera + ML Kit barcode scanning
-- [ ] Product confirm screen — name, image, price input, quantity input, store shown
-- [ ] Celebration screen — confetti, animated Bites counter, community impact line
-- [ ] Shopping list: check-off flow prompts quantity + store confirmation (scan or manual)
-- [ ] Shopping list: "Last bought: X unit @ store" badge per ingredient
-- [ ] Pantry tab (accessible from tab bar or profile)
-- [ ] `PantryList` component — grouped/sorted pantry items with quantity chips
-- [ ] `PantryItemEditor` — add/edit item (name, quantity, unit, notes)
-- [ ] Recipe detail: "Mark as Cooked" button → servings picker → pantry deduction preview sheet → confirm
-- [ ] Post-cook confirmation: shows what was deducted + what was missing from pantry
-- [ ] Rewards tab (5th nav item)
-- [ ] Balance card, streak flame, progress bars, badge grid, leaderboard
+- [x] Scanner screen — Vision Camera + ML Kit barcode scanning
+- [x] Product confirm screen — name, image, price input, quantity input, store shown
+- [x] Celebration screen — confetti, animated Bites counter, community impact line
+- [x] Shopping list: check-off flow prompts quantity + store confirmation (scan or manual)
+- [x] Shopping list: "Last bought: X unit @ store" badge per ingredient
+- [x] Pantry tab (accessible from tab bar or profile)
+- [x] `PantryList` component — grouped/sorted pantry items with quantity chips
+- [x] `PantryItemEditor` — add/edit item (name, quantity, unit, notes)
+- [x] Recipe detail: "Mark as Cooked" button → servings picker → pantry deduction preview sheet → confirm
+- [x] Post-cook confirmation: shows what was deducted + what was missing from pantry
+- [x] Rewards tab (5th nav item)
+- [x] Balance card, streak flame, progress bars, badge grid, leaderboard
 
 **Definition of done:**
 ```
@@ -1394,17 +1394,17 @@ recipe's total cost drops to your target.
 
 **Backend tasks:**
 - [ ] Favourites summary builder — extract taste patterns from saved recipes
-- [ ] Updated Claude `generateMealPlan` prompt — inject favourites + purchase history context for Plus/Pro
+- [x] Updated Claude `generateMealPlan` prompt — inject favourites context for Plus/Pro; tier-based max_tokens (5k FREE / 8k paid)
 - [ ] BullMQ + Redis setup for background jobs (if not already from Sprint 4)
-- [ ] `priceTrendService` — aggregate `PriceObservation` history into weekly buckets per (ingredientName, storeId)
-- [ ] `GET /prices/trends?ingredient=&storeId=&days=` — returns bucketed trend data (Pro gate)
-- [ ] `GET /prices/suggestion?ingredient=&storeId=` — calls Claude with trend data, returns natural-language suggestion (Pro gate)
+- [x] `priceTrendService` — aggregate `PriceObservation` history into weekly buckets per (ingredientName, storeId)
+- [x] `GET /prices/trends?ingredient=&storeId=&days=` — returns bucketed trend data (Pro gate)
+- [x] `GET /prices/suggestion?ingredient=&storeId=` — calls Claude Haiku with trend data, returns buy/hold/substitute suggestion (Pro gate)
 - [ ] Price polling job — runs every 6h, checks canonical price against alert target
-- [ ] `POST /prices/alert`, `GET /prices/alerts`, `DELETE /prices/alerts/:id`
+- [x] `POST /prices/alert`, `GET /prices/alerts`, `DELETE /prices/alerts/:id`
 - [ ] Push notification service (Expo Notifications)
 - [ ] Shopping list response enriched with `trendDirection: 'up' | 'down' | 'stable'` per ingredient
-- [ ] Purchase reminders CRUD — `GET/POST/PUT/DELETE /reminders` (Pro gate)
-- [ ] `GET /reminders/suggestions` — Claude habit learning: pass purchase history per item, get structured suggestions with reasoning (Pro gate); rule-based fallback below 3-purchase threshold
+- [x] Purchase reminders CRUD — `GET/POST/PUT/DELETE /reminders` (Pro gate)
+- [x] `GET /reminders/suggestions` — Claude Haiku habit learning (Pro gate); rule-based fallback below 3-purchase threshold
 - [ ] Daily reminder job (BullMQ cron) — query `PurchaseReminder` where `nextRemindAt <= now AND active = true`, fire push notification, update `lastRemindedAt` + `nextRemindAt`
 
 **Mobile tasks:**

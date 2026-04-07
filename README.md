@@ -190,8 +190,8 @@ cp apps/api/.env.example apps/api/.env
 - [x] `PantryItem` + `PantryLedger` + `PantryAction` schema + migration
 - [x] `POST /recipes/:id/cooked` — deduct pantry, write RECIPE_COOKED ledger, increment timesCooked
 - [x] `GET /rewards/balance`, `/rewards/ledger`, `/rewards/leaderboard`, `/rewards/badges`
-- [ ] `GET /community/impact` — deferred (city-level aggregate stats, Redis hourly cache)
-- [ ] Canonical price recompute BullMQ job — deferred (cluster detection, outlier quarantine, corroboration)
+- [x] `GET /community/impact` — deferred (city-level aggregate stats, Redis hourly cache)
+- [x] Canonical price recompute BullMQ job — deferred (cluster detection, outlier quarantine, corroboration)
 
 **Mobile**
 - [x] Shopping list check-off: confirmation sheet → `POST /purchases` + `POST /pantry/sync-purchase` → check off; "Last bought" badge per ingredient
@@ -208,12 +208,12 @@ cp apps/api/.env.example apps/api/.env
 > "The app learns my taste, shows me price trends, and tells me when to stock up"
 
 - [ ] Favourites-driven Claude prompt personalisation (Plus/Pro)
-- [ ] `priceTrendService` — weekly buckets per (ingredientName, storeId)
-- [ ] `GET /prices/trends`, `GET /prices/suggestion` (Claude, Pro gate, Haiku model)
+- [x] `priceTrendService` — weekly buckets per (ingredientName, storeId)
+- [x] `GET /prices/trends`, `GET /prices/suggestion` (Claude, Pro gate, Haiku model)
 - [ ] Price polling job + `POST /prices/alert`, push notifications
 - [ ] Shopping list enriched with `trendDirection: 'up' | 'down' | 'stable'`
-- [ ] Purchase reminders CRUD — `GET/POST/PUT/DELETE /reminders` (Pro)
-- [ ] `GET /reminders/suggestions` — Claude habit learning (Pro); rule-based fallback < 3 purchases
+- [x] Purchase reminders CRUD — `GET/POST/PUT/DELETE /reminders` (Pro)
+- [x] `GET /reminders/suggestions` — Claude habit learning (Pro); rule-based fallback < 3 purchases
 - [ ] Daily reminder job (BullMQ cron)
 - [ ] "Personalised for you" tag + "Why this?" sheet on meal cards
 - [ ] Price trend chart screen (7/30/90-day toggle)
@@ -269,9 +269,9 @@ Result: scanning the same item twice (e.g. eggs every week) shows product info b
 ### AI model config (cross-cutting, implement in Sprint 5)
 > "Swap the AI model for any use case without touching service code"
 
-- [ ] `src/lib/aiConfig.ts` — centralised `AI_MODELS` constants, all env-driven
-- [ ] Update `mealPlanService.ts` to use `AI_MODELS.MEAL_PLAN`
-- [ ] Apply to all Sprint 5 AI services (price suggestions, reminders)
+- [x] `src/lib/aiConfig.ts` — centralised `AI_MODELS` constants, all env-driven
+- [x] Update `mealPlanService.ts` to use `AI_MODELS.MEAL_PLAN`
+- [x] Apply to all Sprint 5 AI services (price suggestions, reminders)
 - [ ] Document override vars in `.env.example`
 
 ---
@@ -291,7 +291,7 @@ Result: scanning the same item twice (e.g. eggs every week) shows product info b
 > "Interactive checklist drives first-week activation; tips teach advanced features at the right moment"
 
 **Onboarding checklist (home screen card, disappears when all done)**
-- [ ] `completedActions String[]` field on UserProfile
+- [x] `completedActions String[]` field on UserProfile
 - [ ] `markActionComplete()` helper wired to: `POST /plans/generate`, `POST /prices/observation`, `POST /favourites`, `POST /pantry`, `POST /recipes/:id/cooked`
 - [ ] `OnboardingChecklist` component — progress bar, 5 action rows with CTAs, auto-hides on completion
 
@@ -308,8 +308,8 @@ Result: scanning the same item twice (e.g. eggs every week) shows product info b
 Admin inserts rows directly into DB (no admin UI in V1). Mobile fetches on home screen mount and renders dismissible banners or one-per-session modals.
 
 **Backend**
-- [ ] `Announcement` model — title, body, type (BANNER|MODAL), style (INFO|SUCCESS|WARNING|PROMO), targetTiers, ctaText, ctaDeepLink, startsAt, endsAt
-- [ ] `GET /announcements` — active + non-expired, filtered by user tier, Redis-cached 5min
+- [x] `Announcement` model — title, body, type (BANNER|MODAL), style (INFO|SUCCESS|WARNING|PROMO), targetTiers, ctaText, ctaDeepLink, startsAt, endsAt
+- [x] `GET /announcements` — active + non-expired, filtered by user tier, Redis-cached 5min
 
 **Mobile**
 - [ ] `AnnouncementBanner` component — coloured strip, dismiss (persisted to AsyncStorage by announcement ID)
