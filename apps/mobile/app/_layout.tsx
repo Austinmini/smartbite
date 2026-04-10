@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
 import { useProfileStore } from '@/stores/profileStore'
 import { useMealPlanStore } from '@/stores/mealPlanStore'
+import { configureRevenueCat, identifyRevenueCatUser, syncSubscription } from '@/lib/revenueCat'
 // react-native-reanimated bare import omitted — causes import.meta error on web (Reanimated v4)
 // Re-add when animations are needed (Sprint 4+) and web bundling is resolved
 
@@ -31,6 +32,11 @@ export default function RootLayout() {
   useEffect(() => {
     if (loaded) SplashScreen.hideAsync()
   }, [loaded])
+
+  // Configure RevenueCat SDK once on startup (before any user identification)
+  useEffect(() => {
+    configureRevenueCat().catch(() => {})
+  }, [])
 
   if (!loaded) return null
 
@@ -105,6 +111,9 @@ function RootLayoutNav() {
           useProfileStore.getState().reset()
         }
         lastUserId = session.user.id
+        // Identify user with RevenueCat and sync subscription status
+        identifyRevenueCatUser(session.user.id).catch(() => {})
+        syncSubscription(session.access_token).catch(() => {})
       }
     })
     return () => subscription.unsubscribe()
@@ -133,6 +142,7 @@ function RootLayoutNav() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="recipe/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="shopping-list/[planId]" options={{ headerShown: false }} />
+        <Stack.Screen name="paywall" options={{ presentation: 'modal', title: 'Upgrade', headerBackTitle: 'Back' }} />
       </Stack>
     </ThemeProvider>
   )

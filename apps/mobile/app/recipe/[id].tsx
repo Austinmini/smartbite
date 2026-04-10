@@ -439,7 +439,9 @@ export default function RecipeDetailScreen() {
       {cookResult && (
         <View style={styles.section}>
           <View style={styles.cookResultCard}>
-            <Text style={styles.cookResultTitle}>Cooked! Pantry updated</Text>
+            <Text style={styles.cookResultTitle}>
+              {cookResult.deductions.length > 0 ? 'Cooked! Pantry updated' : 'Cooked!'}
+            </Text>
             {cookResult.timesCooked > 0 && (
               <Text style={styles.cookResultMeta}>
                 You've cooked this {cookResult.timesCooked}× total
@@ -452,7 +454,8 @@ export default function RecipeDetailScreen() {
             ))}
             {cookResult.missingFromPantry.length > 0 && (
               <Text style={styles.cookResultMissing}>
-                Not in pantry: {cookResult.missingFromPantry.join(', ')}
+                Not tracked in pantry: {cookResult.missingFromPantry.join(', ')}
+                {cookResult.deductions.length === 0 ? ' — add items to your pantry to track stock.' : ''}
               </Text>
             )}
             <TouchableOpacity onPress={() => setCookResult(null)}>

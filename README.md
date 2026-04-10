@@ -243,13 +243,14 @@ cp apps/api/.env.example apps/api/.env
 ### Sprint 7 — Subscriptions + 7-day Pro trial
 > "I can subscribe and unlock everything"
 
-- [ ] RevenueCat webhook handler, `GET /subscription/status`
-- [ ] 7-day Pro trial granted on signup (`trialEndsAt`, `hasUsedTrial` fields)
-- [ ] Trial expiry job (BullMQ daily cron), day-6 push reminder
-- [ ] All tier gates wired to live DB tier
-- [ ] RevenueCat SDK + introductory offer (7-day free trial on Pro SKU)
-- [ ] Trial banner "Pro Trial · X days left", paywall screen, restore purchases
-- [ ] `TierGatePrompt` — contextual upgrade prompts with post-trial framing
+- [x] RevenueCat webhook handler, `GET /subscription/status`, `POST /subscription/sync`
+- [x] 7-day Pro trial granted on signup (`trialEndsAt`, `hasUsedTrial` fields)
+- [x] Trial expiry job (BullMQ daily cron), day-6 push reminder
+- [x] All tier gates wired to live DB tier
+- [x] RevenueCat SDK + introductory offer (7-day free trial on Pro SKU)
+- [x] Trial banner "Pro Trial · X days left", paywall screen, restore purchases
+- [x] `TierGatePrompt` — contextual upgrade prompts with post-trial framing
+- [ ] Purchase success animation (deferred to Sprint 8)
 
 ---
 

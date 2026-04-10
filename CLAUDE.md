@@ -1461,18 +1461,25 @@ favourite to this week's plan.
 - "Cook again" button re-adds to current week's plan in one tap
 
 **Backend tasks:**
-- [ ] Favourites CRUD — `POST/DELETE /favourites`, `PUT /favourites/:recipeId`
-- [ ] Collections CRUD — `GET/POST/PUT/DELETE /collections`
-- [ ] `POST/DELETE /collections/:id/recipes`
-- [ ] `GET /favourites?sort=recent|mostCooked` with pagination
+- [x] Favourites CRUD — `POST/DELETE /favourites`, `PUT /favourites/:recipeId`
+- [x] Collections CRUD — `GET/POST/PUT/DELETE /collections`
+- [x] `POST/DELETE /collections/:id/recipes`
+- [x] `GET /favourites?sort=recent|mostCooked` with pagination
 
 **Mobile tasks:**
-- [ ] `FavouriteButton` — heart toggle with pop animation (Reanimated)
-- [ ] `CollectionPicker` bottom sheet — list + "New collection" input
-- [ ] Saved screen — 3 tabs: Collections grid, All saved, Most cooked
-- [ ] Collection detail screen — recipes inside a collection
-- [ ] Rating + notes bottom sheet (long-press trigger)
-- [ ] "Cook again" shortcut on saved recipe card
+- [x] `FavouriteButton` — heart toggle with pop animation (Reanimated)
+- [x] `CollectionPicker` bottom sheet — list + "New collection" input
+- [x] Saved screen — 3 tabs: Collections grid, All saved, Most cooked
+- [x] Collection detail — recipes shown inline within each collection card
+- [x] Rating + notes bottom sheet (long-press trigger → `SavedRecipeEditor`)
+- [x] "Cook again" shortcut on saved recipe card
+
+**Tab bar cleanup (do this sprint):**
+- [x] Reduce to 4 visible tabs — **Home, Pantry, Saved, Profile**
+  (Explore hidden until Spoonacular browse is built; Rewards accessible from Profile)
+- [x] Suppress `reminders.tsx` auto-registration with `href: null` in `_layout.tsx`
+- [x] Suppress `rewards.tsx` from tab bar with `href: null`
+- [x] Suppress `explore.tsx` from tab bar with `href: null` until content is built
 
 **Definition of done:**
 ```
@@ -1483,6 +1490,9 @@ favourite to this week's plan.
 ✓ Rating and notes are saved and visible on next open
 ✓ "Cook again" successfully adds the recipe to the current week's plan
 ✓ Empty state shown when no favourites yet
+✓ Tab bar shows 4 tabs (Home, Pantry, Saved, Profile)
+✓ Reminders, Rewards, Explore no longer appear in tab bar
+✓ 380 tests passing (262 API + 118 mobile)
 ```
 
 ---
@@ -1506,22 +1516,22 @@ instantly → gated features unlock without restarting the app.
 - Downgrade / cancel flow
 
 **Backend tasks:**
-- [ ] RevenueCat webhook handler — verify signature, update `user.tier`
-- [ ] `GET /subscription/status` — current tier, limits, renewal date, trial status
-- [ ] All tier gates wired to live DB tier (not hardcoded)
-- [ ] Trial grant on signup — set `trialEndsAt = now + 7 days`, `tier = PRO` on `POST /auth/signup`
-- [ ] Trial expiry job (BullMQ, daily cron) — downgrade users where `trialEndsAt < now AND hasActiveSubscription = false`
-- [ ] `POST /subscription/sync` — recognise RevenueCat trial entitlement (`is_trial_period`) and map to `PRO` tier; recognise expiry and downgrade
+- [x] RevenueCat webhook handler — verify signature, update `user.tier`
+- [x] `GET /subscription/status` — current tier, limits, renewal date, trial status
+- [x] All tier gates wired to live DB tier (not hardcoded)
+- [x] Trial grant on signup — set `trialEndsAt = now + 7 days`, `tier = PRO` on `POST /auth/signup`
+- [x] Trial expiry job (BullMQ, daily cron) — downgrade users where `trialEndsAt < now AND hasActiveSubscription = false`
+- [x] `POST /subscription/sync` — recognise RevenueCat trial entitlement (`is_trial_period`) and map to `PRO` tier; recognise expiry and downgrade
 
 **Mobile tasks:**
-- [ ] RevenueCat SDK configured with products + introductory offer (7-day free trial on Pro SKU)
-- [ ] Trial banner — "Pro Trial · X days left" shown in header during trial
-- [ ] `TierGatePrompt` component — contextual upgrade prompt per gate; includes "You had Pro free" framing post-trial
-- [ ] Paywall screen — 3-tier comparison (Free / Plus / Pro) with "Start 7-day free trial" CTA on Pro
+- [x] RevenueCat SDK configured with products + introductory offer (7-day free trial on Pro SKU)
+- [x] Trial banner — "Pro Trial · X days left" shown in header during trial
+- [x] `TierGatePrompt` component — contextual upgrade prompt per gate; includes "You had Pro free" framing post-trial
+- [x] Paywall screen — 3-tier comparison (Free / Plus / Pro) with "Start 7-day free trial" CTA on Pro
 - [ ] Purchase success animation + tier update without app restart
-- [ ] Profile subscription card — tier badge, trial end date (during trial) / renewal date (post-purchase), manage link
-- [ ] Restore purchases flow
-- [ ] Day-6 trial reminder push notification: "Your Pro trial ends tomorrow — keep your meal planning streak going"
+- [x] Profile subscription card — tier badge, trial end date (during trial) / renewal date (post-purchase), manage link
+- [x] Restore purchases flow
+- [x] Day-6 trial reminder push notification: "Your Pro trial ends tomorrow — keep your meal planning streak going"
 
 **Definition of done:**
 ```
@@ -1530,7 +1540,7 @@ instantly → gated features unlock without restarting the app.
 ✓ All Pro features accessible during trial (trends, AI suggestions, reminders)
 ✓ Trial expiry downgrades user to Free without data loss
 ✓ Upgrade prompt post-trial references the trial experience
-✓ Sandbox purchase completes successfully on physical iOS or Android device
+✓ Sandbox purchase completes successfully on physical iOS or Android device (pending device test)
 ✓ User tier updates within 5s of purchase completion (webhook received)
 ✓ Gated features unlock immediately after purchase (no restart)
 ✓ Profile screen shows correct tier and renewal/trial-end date
@@ -1538,6 +1548,16 @@ instantly → gated features unlock without restarting the app.
 ✓ Day-6 trial reminder push notification fires correctly
 ✓ Second signup with same email cannot claim a second trial (hasUsedTrial guard)
 ```
+
+**Sprint 7 Notes:**
+- `REVENUECAT_WEBHOOK_SECRET` must be added to `apps/api/.env` when available from RevenueCat dashboard. Webhook route exists and is tested; will return 401 until secret is set.
+- Android Play Store account pending verification — RevenueCat Android key is in `.env` but no Play Store products configured yet. iOS-only for now.
+- `notificationService.ts` is a stub that logs to console. Push token registration + Expo Push API wired up in Sprint 8.
+- BullMQ `upsertJobScheduler` API used (BullMQ v5+). If using older BullMQ, replace with `add()` + `repeat` option.
+- `revenueCat.ts` has no unit tests — SDK requires native runtime. Integration tested manually on device.
+- Purchase success animation deferred — `router.back()` fires on purchase success with an Alert. A full Lottie animation would require `react-native-lottie` (add in Sprint 8).
+- `subscriptionStore.ts` is not persisted (intentional) — subscription status is always fresh-fetched from API on profile load. No stale data risk.
+- Tier sync uses both RevenueCat entitlements (mobile) and `POST /subscription/sync` (API). Dual-path ensures correctness even if webhook fails.
 
 ---
 

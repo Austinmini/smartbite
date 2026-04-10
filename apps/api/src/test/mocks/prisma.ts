@@ -9,6 +9,7 @@ jest.mock('../../lib/prisma', () => ({
       create: jest.fn(),
       findUnique: jest.fn(),
       findFirst: jest.fn(),
+      findMany: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
     },
@@ -133,6 +134,10 @@ jest.mock('../../lib/prisma', () => ({
     },
     announcement: {
       findMany: jest.fn(),
+    },
+    webhookEvent: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
     },
     $transaction: jest.fn(),
     $disconnect: jest.fn(),

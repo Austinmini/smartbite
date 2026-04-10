@@ -30,13 +30,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <TabBarIcon name="search" color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="pantry"
         options={{
           title: 'Pantry',
@@ -51,19 +44,20 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="rewards"
-        options={{
-          title: 'Rewards',
-          tabBarIcon: ({ color }) => <TabBarIcon name="star" color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
           tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
         }}
       />
+
+      {/* Hidden routes — routable but not shown in tab bar */}
+      {/* Explore: placeholder only until Spoonacular browse is implemented in a future sprint */}
+      <Tabs.Screen name="explore" options={{ href: null }} />
+      {/* Rewards: accessible from Profile screen */}
+      <Tabs.Screen name="rewards" options={{ href: null }} />
+      {/* Reminders: accessible from Profile screen */}
+      <Tabs.Screen name="reminders" options={{ href: null }} />
     </Tabs>
   )
 }

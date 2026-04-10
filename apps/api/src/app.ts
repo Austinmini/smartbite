@@ -18,6 +18,7 @@ import { favouritesRoute } from './routes/favourites'
 import { collectionsRoute } from './routes/collections'
 import { feedbackRoute } from './routes/feedback'
 import { referralRoute } from './routes/referral'
+import { subscriptionRoute } from './routes/subscription'
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -52,6 +53,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(collectionsRoute, { prefix: '/collections' })
   await app.register(feedbackRoute, { prefix: '/feedback' })
   await app.register(referralRoute, { prefix: '/referral' })
+  await app.register(subscriptionRoute, { prefix: '/subscription' })
 
   return app
 }

@@ -4,8 +4,11 @@ import { useRouter } from 'expo-router'
 import { apiClient } from '@/lib/apiClient'
 import { useAuthStore } from '@/stores/authStore'
 import { useProfileStore } from '@/stores/profileStore'
+import { useSubscriptionStore } from '@/stores/subscriptionStore'
 import { FeedbackSheet } from '@/components/FeedbackSheet'
 import { ReferralCard } from '@/components/ReferralCard'
+import { TrialBanner } from '@/components/TrialBanner'
+import { fetchSubscriptionStatus } from '@/lib/revenueCat'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -36,6 +39,7 @@ export default function ProfileScreen() {
   const router = useRouter()
   const { user, token, clearUser } = useAuthStore()
   const { weeklyBudget, preferredRetailers, dietaryGoals, allergies, cuisinePrefs, cookingTimeMax, servings } = useProfileStore()
+  const { isTrial, daysRemaining, setStatus } = useSubscriptionStore()
   const [feedbackVisible, setFeedbackVisible] = React.useState(false)
   const [referralCode, setReferralCode] = React.useState<string | null>(null)
   const [referralStats, setReferralStats] = React.useState({ invited: 0, converted: 0, totalBitesEarned: 0 })
@@ -47,11 +51,20 @@ export default function ProfileScreen() {
     Promise.all([
       apiClient.get<{ code: string }>('/referral/code', token),
       apiClient.get<{ invited: number; converted: number; totalBitesEarned: number }>('/referral/stats', token),
+      fetchSubscriptionStatus(token),
     ])
-      .then(([code, stats]) => {
+      .then(([code, stats, subStatus]) => {
         if (!active) return
         setReferralCode(code.code)
         setReferralStats(stats)
+        if (subStatus) {
+          setStatus({
+            isTrial: subStatus.isTrial,
+            trialEndsAt: subStatus.trialEndsAt,
+            daysRemaining: subStatus.daysRemaining,
+            renewalDate: subStatus.renewalDate,
+          })
+        }
       })
       .catch(() => {})
 
@@ -99,6 +112,11 @@ export default function ProfileScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <TrialBanner
+        isTrial={isTrial}
+        daysRemaining={daysRemaining}
+        onPress={() => router.push('/paywall')}
+      />
       <Text style={styles.title}>Profile</Text>
       <Text style={styles.email}>{user?.email}</Text>
       <View style={styles.tierBadge}>
@@ -137,7 +155,21 @@ export default function ProfileScreen() {
       </Section>
 
       <Section title="Account">
-        <PreferenceRow label="Subscription" value={user?.tier ?? 'Free'} />
+        <PreferenceRow
+          label="Subscription"
+          value={isTrial ? `Pro Trial · ${daysRemaining ?? 0} days left` : (user?.tier ?? 'Free')}
+          onEdit={() => router.push('/paywall')}
+        />
+        <PreferenceRow
+          label="Bites & Rewards"
+          value="Balance, badges, leaderboard"
+          onEdit={() => router.push('/(tabs)/rewards')}
+        />
+        <PreferenceRow
+          label="Reminders"
+          value="Restock reminders for staples"
+          onEdit={() => router.push('/(tabs)/reminders')}
+        />
       </Section>
 
       {referralCode ? (

@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import { prisma } from '../lib/prisma'
 import { supabaseServiceClient } from '../lib/supabase'
 import { verifyJWT } from '../middleware/auth'
+import { addDays } from 'date-fns'
 
 interface SignupBody { email: string; password: string }
 interface LoginBody  { email: string; password: string }
@@ -37,6 +38,18 @@ export async function authRoute(app: FastifyInstance) {
       // Generate referral code for the new user
       const code = await generateUniqueReferralCode()
       await prisma.referralCode.create({ data: { userId: user.id, code } })
+
+      // Grant 7-day Pro trial to all new users (anti-abuse: hasUsedTrial guard)
+      if (!user.hasUsedTrial) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            tier: 'PRO',
+            trialEndsAt: addDays(new Date(), 7),
+            hasUsedTrial: true,
+          },
+        })
+      }
 
       return reply.status(201).send({
         access_token: data.session.access_token,
