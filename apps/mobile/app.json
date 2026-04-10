@@ -36,7 +36,7 @@
       [
         "expo-camera",
         {
-          "cameraPermissionText": "SmartBite needs camera access to scan grocery items",
+          "cameraPermissionText": "SavvySpoon needs camera access to scan grocery items",
           "microphonePermission": false
         }
       ]

@@ -237,7 +237,7 @@ export async function pricesRoute(app: FastifyInstance) {
 
   app.delete<{ Params: { id: string } }>(
     '/alerts/:id',
-    { preHandler: verifyJWT },
+    { preHandler: verifyJWT, config: { rateLimit: { max: 50, timeWindow: '1 hour' } } },
     async (request, reply) => {
       const userId = (request as any).userId as string
 

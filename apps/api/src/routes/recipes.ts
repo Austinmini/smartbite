@@ -9,6 +9,7 @@ export async function recipesRoute(app: FastifyInstance) {
     '/:id/cooked',
     {
       preHandler: verifyJWT,
+      config: { rateLimit: { max: 50, timeWindow: '1 hour' } },
       schema: {
         params: {
           type: 'object',

@@ -1,6 +1,8 @@
 import Fastify, { type FastifyInstance } from 'fastify'
 import cors from '@fastify/cors'
 import rateLimit from '@fastify/rate-limit'
+import * as Sentry from '@sentry/node'
+import { initSentry, setSentryUser, clearSentryUser } from './lib/sentry'
 import { healthRoute } from './routes/health'
 import { authRoute } from './routes/auth'
 import { profileRoute } from './routes/profile'
@@ -19,8 +21,14 @@ import { collectionsRoute } from './routes/collections'
 import { feedbackRoute } from './routes/feedback'
 import { referralRoute } from './routes/referral'
 import { subscriptionRoute } from './routes/subscription'
+import { promoRoute } from './routes/promo'
 
 export async function buildApp(): Promise<FastifyInstance> {
+  // Initialize Sentry if DSN is configured
+  if (process.env.NODE_ENV !== 'test') {
+    initSentry()
+  }
+
   const app = Fastify({
     logger:
       process.env.NODE_ENV === 'test'
@@ -31,6 +39,35 @@ export async function buildApp(): Promise<FastifyInstance> {
                 ? { target: 'pino-pretty', options: { colorize: true } }
                 : undefined,
           },
+  })
+
+  // Sentry error handling — capture exceptions and set user context
+  app.addHook('onRequest', async (request) => {
+    // Set user context if authenticated
+    const userId = (request as any).userId
+    if (userId) {
+      setSentryUser(userId)
+    }
+  })
+
+  app.addHook('onError', async (request, reply, error) => {
+    // Capture errors in Sentry for 5xx responses
+    if (reply.statusCode >= 500) {
+      Sentry.captureException(error, {
+        contexts: {
+          http: {
+            method: request.method,
+            url: request.url,
+            status_code: reply.statusCode,
+          },
+        },
+      })
+    }
+  })
+
+  // Clear user context on response (cleanup)
+  app.addHook('onResponse', async () => {
+    clearSentryUser()
   })
 
   await app.register(cors, { origin: true })
@@ -54,6 +91,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(feedbackRoute, { prefix: '/feedback' })
   await app.register(referralRoute, { prefix: '/referral' })
   await app.register(subscriptionRoute, { prefix: '/subscription' })
+  await app.register(promoRoute, { prefix: '/promo' })
 
   return app
 }

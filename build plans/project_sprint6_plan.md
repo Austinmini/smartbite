@@ -7,64 +7,78 @@ type: project
 # Sprint 6
 > "I can save recipes I love, organise them, and tell the team what's broken"
 
-**Status:** IMPLEMENTED CORE SLICE — follow-up polish remaining
+**Status:** COMPLETE — 380 tests passing (262 API + 118 mobile)
 
 ---
 
 ## API tasks
 
 ### Favourites
-- [x] `POST /favourites` — save recipe, returns 409 if already saved, 403 if free user at 10-item limit
-- [x] `DELETE /favourites/:recipeId`
-- [x] `PUT /favourites/:recipeId` — update rating (1–5), notes, timesCooked
-- [x] `GET /favourites?sort=recent|mostCooked` — paginated
+- [ ] `POST /favourites` — save recipe, returns 409 if already saved, 403 if free user at 10-item limit
+- [ ] `DELETE /favourites/:recipeId`
+- [ ] `PUT /favourites/:recipeId` — update rating (1–5), notes, timesCooked
+- [ ] `GET /favourites?sort=recent|mostCooked` — paginated
 
 ### Collections
-- [x] `GET /collections`
-- [x] `POST /collections` — create (returns 403 if free user already has 1)
-- [x] `PUT /collections/:id` — rename / update emoji
-- [x] `DELETE /collections/:id`
-- [x] `POST /collections/:id/recipes` — add recipe
-- [x] `DELETE /collections/:id/recipes/:recipeId`
+- [ ] `GET /collections`
+- [ ] `POST /collections` — create (returns 403 if free user already has 1)
+- [ ] `PUT /collections/:id` — rename / update emoji
+- [ ] `DELETE /collections/:id`
+- [ ] `POST /collections/:id/recipes` — add recipe
+- [ ] `DELETE /collections/:id/recipes/:recipeId`
 
 ### Feedback channel
-- [x] `Feedback` model — userId?, type (BUG|FEATURE_REQUEST|PRICE_ISSUE|GENERAL), subject?, body, appVersion?, platform?
-- [x] `POST /feedback` — authenticated, rate limited 5/hr, stores in DB
-- [x] Migration for Feedback table
+- [ ] `Feedback` model — userId?, type (BUG|FEATURE_REQUEST|PRICE_ISSUE|GENERAL), subject?, body, appVersion?, platform?
+- [ ] `POST /feedback` — authenticated, rate limited 5/hr, stores in DB
+- [ ] Migration for Feedback table
 
 ### Referral UI (backend already built in Sprint 1)
-- [x] `GET /referral/code` — confirm working end-to-end
-- [x] `GET /referral/stats` — { invited, converted, totalBitesEarned }
+- [ ] `GET /referral/code` — confirm working end-to-end
+- [ ] `GET /referral/stats` — { invited, converted, totalBitesEarned }
 
 ---
 
 ## Mobile tasks
 
 ### Favourites
-- [x] `FavouriteButton` component — heart toggle
-- [ ] Reanimated pop animation polish
-- [x] `CollectionPicker` bottom sheet — list collections + "New collection" inline input
-- [x] Wire to recipe detail screen
+- [ ] `FavouriteButton` component — heart toggle with Reanimated pop animation
+- [ ] `CollectionPicker` bottom sheet — list collections + "New collection" inline input
+- [ ] Wire to recipe detail screen
 
 ### Saved screen
-- [x] 3 tabs: Collections grid, All saved, Most cooked (sorted by timesCooked)
-- [ ] Collection detail screen — separate route polish still open
-- [x] Rating + notes bottom sheet (long-press trigger on saved recipe card)
-- [x] "Cook again" shortcut — adds recipe back to current week's plan in one tap
-- [x] Empty state when no favourites yet
+- [ ] 3 tabs: Collections grid, All saved, Most cooked (sorted by timesCooked)
+- [ ] Collection detail screen — recipes within a collection
+- [ ] Rating + notes bottom sheet (long-press trigger on saved recipe card)
+- [ ] "Cook again" shortcut — adds recipe back to current week's plan in one tap
+- [ ] Empty state when no favourites yet
 
 ### Feedback channel
-- [x] `FeedbackSheet` component — type picker (4 options), subject input, body multiline input, submit
-- [x] Profile screen: "Send feedback" / "Contact us" button → opens FeedbackSheet
-- [x] `scanner/success.tsx`: "Report wrong price" button → opens FeedbackSheet pre-filled with type=PRICE_ISSUE
-- [x] Success toast: "Thanks! We'll review your feedback."
+- [ ] `FeedbackSheet` component — type picker (4 options), subject input, body multiline input, submit
+- [ ] Profile screen: "Send feedback" / "Contact us" button → opens FeedbackSheet
+- [ ] `scanner/success.tsx`: "Report wrong price" button → opens FeedbackSheet pre-filled with type=PRICE_ISSUE
+- [ ] Success toast: "Thanks! We'll review your feedback."
 
 ### Referral UI
-- [x] Referral card in Profile screen — unique code + share button (native share sheet)
-- [x] "X invited, Y converted" stats
+- [ ] Referral card in Profile screen — unique code + share button (native share sheet)
+- [ ] "X invited, Y converted" stats
 - [ ] Post-upgrade success screen: referral CTA "Share with a friend — you both earn 150 Bites"
 
 ---
+
+## Tab bar cleanup (UX — do this sprint)
+
+**Problem:** There are currently 7 tabs showing (Home, Explore, Pantry, Saved, Rewards, Profile, Reminders).
+`reminders.tsx` lives in `(tabs)/` so Expo Router auto-registers it as a tab even though it has no explicit `Tabs.Screen` entry in `_layout.tsx`.
+
+**Tasks:**
+- [ ] Reduce to max 5 tabs — recommended: **Home, Explore, Pantry, Saved, Profile**
+  - Rewards moves into Profile screen (already has a rewards section)
+  - Reminders moves into Profile screen (already accessible from there)
+  - Add `href: null` to any tab that should not appear in the bar, OR move the file out of `(tabs)/`
+- [ ] Hide or disable tabs the user's tier can't access yet — use `href: null` in `Tabs.Screen` options based on `useAuthStore` tier
+  - Explore (Spoonacular browse) — placeholder only, hide until Sprint 6 content is built
+  - Any Pro-only tab should show an upgrade prompt rather than silently hiding
+- [ ] Fix `reminders.tsx` being auto-registered — move it to `app/reminders/index.tsx` or suppress with `href: null` in `_layout.tsx`
 
 ## Definition of done
 ```
@@ -80,9 +94,3 @@ type: project
 ✓ "Report wrong price" from scanner pre-fills type correctly
 ✓ Referral code visible and shareable from Profile
 ```
-
-## Remaining follow-up
-- Add the Reanimated heart pop animation on save
-- Split collections into a dedicated collection detail route instead of inline grouped cards
-- Add the post-upgrade referral CTA screen mentioned in the original scope
-- Sync mobile saved/collections state with the new API routes instead of local-only persistence

@@ -30,7 +30,7 @@ function getWeekKey(): string {
 
 export async function plansRoute(app: FastifyInstance) {
   // ─── POST /plans/generate ──────────────────────────────────────────────────
-  app.post('/generate', { preHandler: verifyJWT }, async (request, reply) => {
+  app.post('/generate', { preHandler: verifyJWT, config: { rateLimit: { max: 10, timeWindow: '1 hour' } } }, async (request, reply) => {
     const userId = (request as any).userId as string
 
     // Fetch user tier

@@ -20,9 +20,9 @@ MealMe API was deprecated. Kroger Developer API was also removed. SmartBite pivo
 - Sprint 1 ✅ — Auth, onboarding, static TX store list
 - Sprint 2 ✅ — AI meal plan generation
 - Sprint 3 ✅ — Pricing UI (MealMe removed, Kroger removed, graceful degraded state is permanent for no-data stores)
-- Sprint 4 ✅ — Scanner + Community Pricing + Pantry + Purchase History
-- Sprint 5 ✅ — Price Trends + AI Suggestions + Reminders + Personalisation
-- Sprint 6 🚧 — Favourites + Collections + Feedback + Referral UI core slice implemented
+- Sprint 4 — Scanner + Community Pricing + Pantry + Purchase History (NEXT)
+- Sprint 5 — Price Trends + AI Suggestions + Reminders + Personalisation
+- Sprint 6 — Favourites + Collections
 - Sprint 7 — Subscriptions + 7-day Pro trial
 - Sprint 8 — App store ready
 

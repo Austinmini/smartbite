@@ -4,6 +4,7 @@
 import { Platform } from 'react-native'
 import Constants from 'expo-constants'
 import { apiClient } from './apiClient'
+import { trackEvent } from './analytics'
 
 // RevenueCat requires a native development build — it does not work in Expo Go.
 function isExpoGo(): boolean {
@@ -73,6 +74,17 @@ export async function syncSubscription(token?: string): Promise<Tier> {
 
     const tier: Tier = hasPro ? 'PRO' : hasPlus ? 'PLUS' : 'FREE'
 
+    // Track trial started if in trial period
+    if (isTrialPeriod && tier === 'PRO') {
+      trackEvent({
+        name: 'trial_started',
+        properties: {
+          tier: 'PRO',
+          duration_days: 7
+        }
+      })
+    }
+
     // Sync to API (heals any DB drift without requiring webhook)
     await apiClient.post('/subscription/sync', { tier, isTrialPeriod }, token)
 
@@ -107,6 +119,23 @@ export async function purchaseProduct(productId: string): Promise<boolean> {
       return false
     }
     await Purchases.purchasePackage(pkg)
+
+    // Determine tier and duration from product ID
+    const isPro = productId.includes('pro')
+    const isAnnual = productId.includes('annual') || productId.includes('year')
+    const tier = isPro ? 'pro' : 'plus'
+    const duration = isAnnual ? 'annual' : 'monthly'
+
+    // Track subscription purchase event
+    trackEvent({
+      name: 'subscription_purchased',
+      properties: {
+        tier,
+        duration,
+        source: 'paywall'
+      }
+    })
+
     return true
   } catch (err: any) {
     if (err?.userCancelled) return false

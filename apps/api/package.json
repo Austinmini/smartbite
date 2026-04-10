@@ -18,6 +18,8 @@
     "@fastify/cors": "^10.0.2",
     "@fastify/rate-limit": "^10.2.2",
     "@prisma/client": "^6.6.0",
+    "@sentry/node": "^10.48.0",
+    "@sentry/tracing": "^7.120.4",
     "@smartbite/shared": "workspace:*",
     "@supabase/supabase-js": "^2.49.4",
     "bullmq": "^5.73.3",

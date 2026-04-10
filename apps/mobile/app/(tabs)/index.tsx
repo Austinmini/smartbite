@@ -9,6 +9,7 @@ import { TipBanner } from '../../components/TipBanner'
 import { AnnouncementBanner } from '../../components/AnnouncementBanner'
 import { apiClient } from '../../lib/apiClient'
 import { getApiBaseUrl } from '../../lib/apiBaseUrl'
+import { trackEvent } from '../../lib/analytics'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import type { PlanMeal } from '../../stores/mealPlanStore'
 import type { Announcement } from '../../components/AnnouncementBanner'
@@ -153,6 +154,18 @@ export default function HomeScreen() {
       }
       const body = await res.json()
       setPlan(body.plan)
+
+      // Track meal plan generation event
+      const tier = useAuthStore.getState().tier
+      trackEvent({
+        name: 'meal_plan_generated',
+        properties: {
+          tier,
+          days: 7,
+          personalized: tier !== 'FREE'
+        }
+      })
+
       await loadChecklistStatus()
     } catch (e: any) {
       setError(e.message ?? 'Plan generation temporarily unavailable. Try again in a few minutes.')

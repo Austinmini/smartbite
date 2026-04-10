@@ -11,6 +11,7 @@ import { getApiBaseUrl } from '../../lib/apiBaseUrl'
 import { FavouriteButton } from '../../components/FavouriteButton'
 import { CollectionPicker } from '../../components/CollectionPicker'
 import { useSavedRecipesStore } from '../../stores/savedRecipesStore'
+import { trackEvent } from '../../lib/analytics'
 
 interface PriceAlert {
   id: string
@@ -216,6 +217,16 @@ export default function RecipeDetailScreen() {
       })
       setCookSheet(false)
       setCookResult(result)
+
+      // Track recipe cooked event
+      trackEvent({
+        name: 'recipe_marked_cooked',
+        properties: {
+          recipe_id: meal.recipe.id,
+          servings
+        }
+      })
+
       if (useSavedRecipesStore.getState().isSaved(meal.recipe.id)) {
         updateSavedFavourite(meal.recipe.id, { timesCooked: result.timesCooked })
       }
@@ -251,6 +262,10 @@ export default function RecipeDetailScreen() {
             onPress={() => {
               if (isSaved) {
                 removeFavourite(recipe.id)
+                trackEvent({
+                  name: 'recipe_unsaved',
+                  properties: { recipe_id: recipe.id }
+                })
                 return
               }
               const result = saveFavourite(recipe, user?.tier ?? 'FREE')
@@ -258,6 +273,10 @@ export default function RecipeDetailScreen() {
                 Alert.alert('Save limit reached', result.error)
                 return
               }
+              trackEvent({
+                name: 'recipe_saved',
+                properties: { recipe_id: recipe.id, collection: undefined }
+              })
               setCollectionPickerVisible(true)
             }}
           />

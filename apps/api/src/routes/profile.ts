@@ -203,4 +203,41 @@ export async function profileRoute(app: FastifyInstance) {
     })
     return reply.send({ profile })
   })
+
+  // DELETE /account — GDPR data deletion (irrevocable)
+  app.delete(
+    '/',
+    { preHandler: verifyJWT, config: { rateLimit: { max: 2, timeWindow: '24 hours' } } },
+    async (request, reply) => {
+      const userId = request.userId
+
+      // Cascade delete user data in order of dependencies
+      // Note: PriceObservation rows are deleted (userId is not nullable in current schema)
+      await prisma.$transaction([
+        prisma.purchaseReminder.deleteMany({ where: { userId } }),
+        prisma.priceAlert.deleteMany({ where: { userId } }),
+        prisma.purchaseHistory.deleteMany({ where: { userId } }),
+        prisma.pantryItem.deleteMany({ where: { userId } }),
+        prisma.pantryLedger.deleteMany({ where: { userId } }),
+        prisma.favourite.deleteMany({ where: { userId } }),
+        prisma.collection.deleteMany({ where: { userId } }),
+        prisma.meal.deleteMany({ where: { mealPlan: { userId } } }),
+        prisma.mealPlan.deleteMany({ where: { userId } }),
+        prisma.bitesLedger.deleteMany({ where: { userId } }),
+        prisma.bitesBalance.deleteMany({ where: { userId } }),
+        prisma.userBadge.deleteMany({ where: { userId } }),
+        prisma.scanStreak.deleteMany({ where: { userId } }),
+        prisma.referralCode.deleteMany({ where: { userId } }),
+        prisma.referralEvent.deleteMany({ where: { referrerId: userId } }),
+        prisma.referralReward.deleteMany({ where: { userId } }),
+        prisma.promoRedemption.deleteMany({ where: { userId } }),
+        prisma.priceObservation.deleteMany({ where: { userId } }),
+        // Delete profile and user
+        prisma.userProfile.delete({ where: { userId } }),
+        prisma.user.delete({ where: { id: userId } }),
+      ])
+
+      return reply.status(200).send({ message: 'Account deleted successfully' })
+    }
+  )
 }

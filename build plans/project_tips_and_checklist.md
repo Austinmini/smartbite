@@ -13,37 +13,29 @@ Tracks completion server-side so it persists across devices.
 **Schema — add to UserProfile:**
 ```prisma
 completedActions String[] @default([])
-// Values: 'profile_complete' | 'first_plan_generated' | 'first_scan' | 'first_purchase' | 'first_recipe_cooked'
+// Values: 'FIRST_PLAN' | 'FIRST_SCAN' | 'FIRST_SAVE' | 'FIRST_PANTRY' | 'FIRST_COOK'
 ```
 
 **Checklist items:**
 | Action | Trigger | Bites bonus |
 |---|---|---|
-| Set up your profile | `PUT /profile` or any existing saved profile | — |
 | Generate your first meal plan | `POST /plans/generate` (first time) | Already covered by welcome flow |
 | Scan a grocery item | `POST /prices/observation` (first scan) | Already FIRST_SCAN badge |
-| Record your first purchase | `POST /purchases` (first time) | — |
+| Save a favourite recipe | `POST /favourites` (first time) | — |
+| Add an item to your pantry | `POST /pantry` (first time) | — |
 | Mark a meal as cooked | `POST /recipes/:id/cooked` (first time) | — |
 
-**API:** `GET /profile` returns normalized `completedActions`; `GET /profile/checklist` returns checklist progress with inferred completion for existing plans, scans, purchases, and profile setup.
+**API:** `GET /profile` already returns profile — add `completedActions` to response.
 Each relevant route marks the action when triggered for the first time:
 ```typescript
 // In POST /plans/generate, after creating the plan:
-await markActionComplete(userId, 'first_plan_generated')
+await markActionComplete(userId, 'FIRST_PLAN')
 
 async function markActionComplete(userId: string, action: string) {
-  const profile = await prisma.userProfile.findUnique({
+  await prisma.userProfile.update({
     where: { userId },
-    select: { completedActions: true },
+    data: { completedActions: { push: action } },
   })
-
-  const completedActions = normalizeCompletedActions(profile?.completedActions)
-  if (!completedActions.includes(action)) {
-    await prisma.userProfile.update({
-      where: { userId },
-      data: { completedActions: [...completedActions, action] },
-    })
-  }
 }
 ```
 
@@ -52,7 +44,7 @@ async function markActionComplete(userId: string, action: string) {
 - Progress bar (e.g. "3 of 5 complete")
 - Each item: checkmark icon (green if done, grey if not), label, optional CTA button
 - "Dismiss" link once all 5 done (or auto-hides)
-- Stored completion state read from `GET /profile/checklist`
+- Stored completion state read from `profile.completedActions`
 
 ---
 
@@ -89,11 +81,10 @@ interface Tip {
 ---
 
 ## Implementation status
-- [x] `completedActions` field on UserProfile schema + migration
-- [x] `markActionComplete()` helper + wire to relevant routes
-- [x] `GET /profile` includes normalized `completedActions`
-- [x] `GET /profile/checklist` exposes checklist progress
-- [x] `OnboardingChecklist` component (mobile)
-- [x] Home screen integration (show below plan, hide when complete)
+- [ ] `completedActions` field on UserProfile schema + migration
+- [ ] `markActionComplete()` helper + wire to relevant routes
+- [ ] `GET /profile` includes `completedActions`
+- [ ] `OnboardingChecklist` component (mobile)
+- [ ] Home screen integration (show below plan, hide when complete)
 - [ ] `TipBanner` component (mobile)
 - [ ] Per-screen tip wiring (AsyncStorage dismiss tracking)

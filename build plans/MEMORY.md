@@ -8,8 +8,8 @@
 - [Sprint 3 — COMPLETE](project_sprint3_plan.md) — Pricing UI, split optimizer, shopping list. MealMe/Kroger removed.
 - [Sprint 4 — COMPLETE](project_sprint4_plan.md) — Scanner, pantry, purchase history, rewards. 161 tests.
 - [Sprint 5 — COMPLETE](project_sprint5_plan.md) — Price trends, AI suggestions, reminders, announcements, onboarding checklist. 328 tests (237 API + 91 mobile).
-- [Sprint 6 — IN PROGRESS / CORE IMPLEMENTED](project_sprint6_plan.md) — API complete; mobile core flows landed; a few polish items remain
-- [Sprint 7 — PLANNED](project_sprint7_plan.md) — Subscriptions, 7-day Pro trial, async plan generation
+- [Sprint 6 — COMPLETE](project_sprint6_plan.md) — Favourites, collections, feedback, referral UI, tab bar 4 tabs. 380 tests.
+- [Sprint 7 — COMPLETE](project_sprint7_plan.md) — RevenueCat, webhook, trial grant/expiry, paywall, TierGatePrompt, TrialBanner. 410 tests.
 - [Sprint 8 — PLANNED](project_sprint8_plan.md) — App store ready: TestFlight, Play Store, Sentry, PostHog, PgBouncer
 - [Full pricing pivot + current architecture](project_pricing_pivot.md) — MealMe/Kroger gone; all TX stores; Item catalog; pantry; reminders; price reconciliation; free trial; tier features; economics
 - [Scalability findings](project_scaling_findings.md) — 4 fixes before 10k users: PgBouncer now, event-driven canonical job in S5, async plan gen in S7
@@ -22,18 +22,14 @@
 
 ## Current state summary
 
-- **Sprints complete:** 1, 2, 3, 4, 5 (fully complete — API + mobile)
-- **Current sprint:** 6 — core slice implemented
-- **Next:** Finish Sprint 6 polish, then move into Sprint 7
+- **Sprints complete:** 1, 2, 3, 4, 5, 6, 7 (fully complete — API + mobile)
+- **Next:** Sprint 8 (App store ready)
 - **API base URL:** `EXPO_PUBLIC_API_URL` (defaults to `http://localhost:3000`)
 - **Auth:** Supabase in-memory storage on mobile; token from `supabase.auth.getSession()` on every request via `apiClient.ts`; refresh_token persisted in Zustand/AsyncStorage; setSession() on cold start
 - **Pricing model:** Community crowdsourced only. `CanonicalPrice` fed by `PriceObservation` scans.
 - **Stores:** All TX grocery chains (25+) via static `TX_GROCERY_STORES` array. No cap on user store selections.
 - **Tiers:** Free / Plus ($4.99/mo) / Pro ($9.99/mo). New users get 7-day Pro trial on signup.
 - **Schema additions (Sprint 5):** `PurchaseReminder`, `Announcement` models; `completedActions String[]` on UserProfile; `trialEndsAt DateTime?`, `hasUsedTrial Boolean` on User
-- **Schema additions (Sprint 6):** `Feedback` model + `FeedbackType` enum
 - **Key pending schema fields:** `quarantined`, `priceTag` on `PriceObservation`; `previousPrice`, `varianceP25/P75`, `priceTag` on `CanonicalPrice`
 - **AI model config:** `src/lib/aiConfig.ts` — AI_MODELS constants, all env-driven. Haiku for price/reminder suggestions, Sonnet for meal plans.
-- **Sprint 6 backend:** `POST/GET/PUT/DELETE /favourites`, full `/collections` CRUD, `POST /feedback`, `GET /referral/code`, `GET /referral/stats`
-- **Sprint 6 mobile:** persisted saved recipes/collections store, heart save flow on recipe detail, Saved tab with collections/all saved/most cooked, notes/rating editor, profile feedback sheet + referral card, scanner success "Report wrong price"
-- **Sprint 6 remaining polish:** Reanimated heart animation, dedicated collection detail route, referral post-upgrade CTA, sync mobile saved state with API
+

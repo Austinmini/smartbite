@@ -9,8 +9,19 @@ import { useAuthStore } from '@/stores/authStore'
 import { useProfileStore } from '@/stores/profileStore'
 import { useMealPlanStore } from '@/stores/mealPlanStore'
 import { configureRevenueCat, identifyRevenueCatUser, syncSubscription } from '@/lib/revenueCat'
+import { initSentry, setSentryUser } from '@/lib/sentry'
+import { PostHog } from 'posthog-react-native'
+import { setUserProperties, clearUserProperties } from '@/lib/analytics'
 // react-native-reanimated bare import omitted — causes import.meta error on web (Reanimated v4)
 // Re-add when animations are needed (Sprint 4+) and web bundling is resolved
+
+// Initialize Sentry on app startup
+initSentry()
+
+// Initialize PostHog analytics on app startup
+PostHog.setup(process.env.EXPO_PUBLIC_POSTHOG_KEY || '', {
+  host: process.env.EXPO_PUBLIC_POSTHOG_HOST || 'https://us.posthog.com',
+})
 
 export { ErrorBoundary } from 'expo-router'
 
@@ -103,17 +114,23 @@ function RootLayoutNav() {
         useAuthStore.getState().clearUser()
         useMealPlanStore.getState().reset()
         useProfileStore.getState().reset()
+        clearUserProperties()
         lastUserId = undefined
       } else if (session.user.id !== lastUserId) {
         // Different user signed in (account switch without explicit logout)
         if (lastUserId !== undefined) {
           useMealPlanStore.getState().reset()
           useProfileStore.getState().reset()
+          clearUserProperties()
         }
         lastUserId = session.user.id
-        // Identify user with RevenueCat and sync subscription status
+        // Identify user with Sentry, RevenueCat, PostHog, and sync subscription status
+        setSentryUser(session.user.id)
         identifyRevenueCatUser(session.user.id).catch(() => {})
-        syncSubscription(session.access_token).catch(() => {})
+        syncSubscription(session.access_token).then(() => {
+          const { tier } = useAuthStore.getState()
+          setUserProperties(session.user.id, tier)
+        }).catch(() => {})
       }
     })
     return () => subscription.unsubscribe()

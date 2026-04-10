@@ -1,6 +1,7 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import jwt from 'jsonwebtoken'
 import { supabaseServiceClient } from '../lib/supabase'
+import { setSentryUser } from '../lib/sentry'
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -16,6 +17,7 @@ export async function verifyJWT(request: FastifyRequest, reply: FastifyReply) {
     try {
       const payload = jwt.verify(token, process.env.JWT_SECRET_TEST!) as { sub: string }
       request.userId = payload.sub
+      setSentryUser(request.userId)
       return
     } catch {
       return reply.status(401).send({ error: 'Invalid token' })
@@ -26,4 +28,5 @@ export async function verifyJWT(request: FastifyRequest, reply: FastifyReply) {
   const { data, error } = await supabaseServiceClient.auth.getUser(token)
   if (error || !data.user) return reply.status(401).send({ error: 'Invalid token' })
   request.userId = data.user.id
+  setSentryUser(request.userId)
 }

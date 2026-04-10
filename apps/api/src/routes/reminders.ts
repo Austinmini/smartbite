@@ -106,7 +106,7 @@ export async function remindersRoute(app: FastifyInstance) {
     Body: { quantity?: number; unit?: string; frequencyDays?: number }
   }>(
     '/:id',
-    { preHandler: verifyJWT },
+    { preHandler: verifyJWT, config: { rateLimit: { max: 50, timeWindow: '1 hour' } } },
     async (request, reply) => {
       const userId = (request as any).userId as string
 
@@ -142,7 +142,7 @@ export async function remindersRoute(app: FastifyInstance) {
 
   app.delete<{ Params: { id: string } }>(
     '/:id',
-    { preHandler: verifyJWT },
+    { preHandler: verifyJWT, config: { rateLimit: { max: 50, timeWindow: '1 hour' } } },
     async (request, reply) => {
       const userId = (request as any).userId as string
 

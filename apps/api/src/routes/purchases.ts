@@ -9,6 +9,7 @@ export async function purchasesRoute(app: FastifyInstance) {
     '/',
     {
       preHandler: verifyJWT,
+      config: { rateLimit: { max: 100, timeWindow: '24 hours' } },
       schema: {
         body: {
           type: 'object',
@@ -81,6 +82,7 @@ export async function purchasesRoute(app: FastifyInstance) {
     '/',
     {
       preHandler: verifyJWT,
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
       schema: {
         querystring: {
           type: 'object',
