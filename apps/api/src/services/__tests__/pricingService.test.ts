@@ -8,18 +8,8 @@ jest.mock('../../lib/redis', () => ({
   },
 }))
 
-jest.mock('../../lib/mealme', () => ({
-  queryMealMe: jest.fn(),
-}))
-
-jest.mock('../../lib/kroger', () => ({
-  queryKrogerProduct: jest.fn(),
-}))
-
 import { redis } from '../../lib/redis'
 import { prisma } from '../../lib/prisma'
-import { queryMealMe } from '../../lib/mealme'
-import { queryKrogerProduct } from '../../lib/kroger'
 import {
   SPLIT_THRESHOLD,
   buildShoppingList,
@@ -31,8 +21,6 @@ import {
 
 const redisMock = redis as any
 const prismaMock = prisma as any
-const mealMeMock = queryMealMe as jest.Mock
-const krogerMock = queryKrogerProduct as jest.Mock
 
 const stores: ScanStore[] = [
   { storeId: 'heb-1', storeName: 'HEB', chain: 'heb', distanceMiles: 1.2 },
@@ -48,20 +36,24 @@ beforeEach(() => {
   jest.clearAllMocks()
   redisMock.get.mockResolvedValue(null)
   redisMock.set.mockResolvedValue('OK')
-  mealMeMock.mockResolvedValue(null)
-  krogerMock.mockResolvedValue(null)
+  prismaMock.priceObservation.findMany = prismaMock.priceObservation.findMany ?? jest.fn()
+  prismaMock.priceObservation.aggregate = prismaMock.priceObservation.aggregate ?? jest.fn()
+  prismaMock.priceObservation.findMany.mockResolvedValue([])
+  prismaMock.priceObservation.aggregate.mockResolvedValue({ _avg: { price: null } })
 })
 
 describe('scanPrices service', () => {
   it('returns bestSingleStore with lowest total cost', async () => {
-    mealMeMock.mockImplementation(async ({ ingredient, store }: any) => {
+    prismaMock.priceObservation.findMany.mockImplementation(async ({ where }: any) => {
+      const storeName = where?.storeId === 'heb-1' ? 'HEB' : where?.storeId === 'kroger-1' ? 'Kroger' : ''
+      const ingredient = where?.productName?.contains
       const prices: Record<string, Record<string, number>> = {
         'HEB': { 'chicken breast': 7.25, rice: 2.5 },
         'Kroger': { 'chicken breast': 6.0, rice: 4.0 },
       }
 
-      const price = prices[store.storeName]?.[ingredient.name]
-      return price ? { price, unit: ingredient.unit, available: true, source: 'api' } : null
+      const price = prices[storeName]?.[ingredient]
+      return price ? [{ price }] : []
     })
 
     const result = await scanPrices({
@@ -77,14 +69,16 @@ describe('scanPrices service', () => {
   })
 
   it('computes bestSplitOption when savings >= $3', async () => {
-    mealMeMock.mockImplementation(async ({ ingredient, store }: any) => {
+    prismaMock.priceObservation.findMany.mockImplementation(async ({ where }: any) => {
+      const storeName = where?.storeId === 'heb-1' ? 'HEB' : where?.storeId === 'kroger-1' ? 'Kroger' : ''
+      const ingredient = where?.productName?.contains
       const prices: Record<string, Record<string, number>> = {
         'HEB': { 'chicken breast': 9.0, rice: 5.0 },
         'Kroger': { 'chicken breast': 4.5, rice: 8.5 },
       }
 
-      const price = prices[store.storeName]?.[ingredient.name]
-      return price ? { price, unit: ingredient.unit, available: true, source: 'api' } : null
+      const price = prices[storeName]?.[ingredient]
+      return price ? [{ price }] : []
     })
 
     const result = await scanPrices({
@@ -103,14 +97,16 @@ describe('scanPrices service', () => {
   })
 
   it('returns null for bestSplitOption when savings < $3', async () => {
-    mealMeMock.mockImplementation(async ({ ingredient, store }: any) => {
+    prismaMock.priceObservation.findMany.mockImplementation(async ({ where }: any) => {
+      const storeName = where?.storeId === 'heb-1' ? 'HEB' : where?.storeId === 'kroger-1' ? 'Kroger' : ''
+      const ingredient = where?.productName?.contains
       const prices: Record<string, Record<string, number>> = {
         'HEB': { 'chicken breast': 7.0, rice: 3.5 },
         'Kroger': { 'chicken breast': 6.5, rice: 4.0 },
       }
 
-      const price = prices[store.storeName]?.[ingredient.name]
-      return price ? { price, unit: ingredient.unit, available: true, source: 'api' } : null
+      const price = prices[storeName]?.[ingredient]
+      return price ? [{ price }] : []
     })
 
     const result = await scanPrices({
@@ -125,7 +121,7 @@ describe('scanPrices service', () => {
   })
 
   it('respects storesPerScan tier limit', async () => {
-    mealMeMock.mockResolvedValue({ price: 5, unit: 'item', available: true, source: 'api' })
+    prismaMock.priceObservation.findMany.mockResolvedValue([{ price: 5 }])
 
     const result = await scanPrices({
       recipeId: 'recipe-4',
@@ -156,16 +152,16 @@ describe('scanPrices service', () => {
     })
 
     expect(result.cached).toBe(true)
-    expect(mealMeMock).not.toHaveBeenCalled()
+    expect(prismaMock.priceObservation.findMany).not.toHaveBeenCalled()
     expect(result.bestSingleStore.totalCost).toBe(9.25)
   })
 
-  it('falls back to Kroger API when MealMe returns empty', async () => {
-    mealMeMock.mockImplementation(async ({ store }: any) => {
-      if (store.chain === 'kroger') return null
-      return { price: 8, unit: 'item', available: true, source: 'api' }
+  it('uses regional market estimate when store-specific observations are missing', async () => {
+    prismaMock.priceObservation.findMany.mockImplementation(async ({ where }: any) => {
+      if (where?.storeId) return []
+      if (where?.productName?.contains === 'milk') return [{ price: 3.25 }, { price: 3.75 }]
+      return []
     })
-    krogerMock.mockResolvedValue({ price: 3.25, unit: 'item', available: true, source: 'api' })
 
     const result = await scanPrices({
       recipeId: 'recipe-6',
@@ -174,14 +170,12 @@ describe('scanPrices service', () => {
       maxStores: 2,
     })
 
-    expect(krogerMock).toHaveBeenCalled()
-    expect(result.bestSingleStore.storeName).toBe('Kroger')
-    expect(result.bestSingleStore.totalCost).toBe(3.25)
+    expect(result.bestSingleStore.totalCost).toBeGreaterThan(0)
+    expect(result.coveragePct).toBe(0)
   })
 
   it('returns an unavailable fallback result instead of throwing when no stores have prices', async () => {
-    mealMeMock.mockResolvedValue(null)
-    krogerMock.mockResolvedValue(null)
+    prismaMock.priceObservation.findMany.mockResolvedValue([])
 
     const result = await scanPrices({
       recipeId: 'recipe-7',
@@ -194,7 +188,7 @@ describe('scanPrices service', () => {
     expect(result.bestSplitOption).toBeNull()
     expect(result.storeResults).toHaveLength(2)
     expect(result.storeResults.every((store) => store.items.every((item) => item.available === false))).toBe(true)
-    expect(result.message).toMatch(/no live price data/i)
+    expect(result.message).toMatch(/community pricing is still sparse/i)
   })
 })
 
@@ -207,8 +201,8 @@ describe('split optimizer', () => {
         distanceMiles: 1.2,
         totalCost: 12,
         items: [
-          { ingredient: 'chicken breast', price: 7, unit: 'lb', available: true, source: 'api' },
-          { ingredient: 'rice', price: 2, unit: 'bag', available: true, source: 'api' },
+          { ingredient: 'chicken breast', price: 7, unit: 'lb', available: true, source: 'community' },
+          { ingredient: 'rice', price: 2, unit: 'bag', available: true, source: 'community' },
         ],
       },
       {
@@ -217,8 +211,8 @@ describe('split optimizer', () => {
         distanceMiles: 2.1,
         totalCost: 13,
         items: [
-          { ingredient: 'chicken breast', price: 4, unit: 'lb', available: true, source: 'api' },
-          { ingredient: 'rice', price: 9, unit: 'bag', available: true, source: 'api' },
+          { ingredient: 'chicken breast', price: 4, unit: 'lb', available: true, source: 'community' },
+          { ingredient: 'rice', price: 9, unit: 'bag', available: true, source: 'community' },
         ],
       },
     ])
@@ -235,8 +229,8 @@ describe('split optimizer', () => {
         distanceMiles: 1.2,
         totalCost: 14,
         items: [
-          { ingredient: 'beans', price: 2.5, unit: 'can', available: true, source: 'api' },
-          { ingredient: 'rice', price: 4.5, unit: 'bag', available: true, source: 'api' },
+          { ingredient: 'beans', price: 2.5, unit: 'can', available: true, source: 'community' },
+          { ingredient: 'rice', price: 4.5, unit: 'bag', available: true, source: 'community' },
         ],
       },
       {
@@ -245,8 +239,8 @@ describe('split optimizer', () => {
         distanceMiles: 3.4,
         totalCost: 13,
         items: [
-          { ingredient: 'beans', price: 4.5, unit: 'can', available: true, source: 'api' },
-          { ingredient: 'rice', price: 2.0, unit: 'bag', available: true, source: 'api' },
+          { ingredient: 'beans', price: 4.5, unit: 'can', available: true, source: 'community' },
+          { ingredient: 'rice', price: 2.0, unit: 'bag', available: true, source: 'community' },
         ],
       },
     ])
@@ -263,14 +257,14 @@ describe('split optimizer', () => {
         storeName: 'HEB',
         distanceMiles: 1.2,
         totalCost: 10,
-        items: [{ ingredient: 'rice', price: 5, unit: 'bag', available: true, source: 'api' }],
+        items: [{ ingredient: 'rice', price: 5, unit: 'bag', available: true, source: 'community' }],
       },
       {
         storeId: 'kroger-1',
         storeName: 'Kroger',
         distanceMiles: 2.1,
         totalCost: 8,
-        items: [{ ingredient: 'rice', price: 4.75, unit: 'bag', available: true, source: 'api' }],
+        items: [{ ingredient: 'rice', price: 4.75, unit: 'bag', available: true, source: 'community' }],
       },
     ])
 
@@ -369,14 +363,21 @@ describe('buildShoppingList', () => {
       maxStores: 2,
     })
     prismaMock.purchaseHistory.findMany.mockResolvedValue([])
-    mealMeMock.mockImplementation(async ({ ingredient, store }: any) => {
+    prismaMock.priceObservation.findMany.mockImplementation(async ({ where }: any) => {
+      const storeName =
+        where?.storeId === 'store-heb-1'
+          ? 'HEB South Congress'
+          : where?.storeId === 'store-walmart-1'
+            ? 'Walmart Supercenter'
+            : ''
+      const ingredient = where?.productName?.contains
       const prices: Record<string, Record<string, number>> = {
         'HEB South Congress': { rice: 2.25, beans: 4.5 },
         'Walmart Supercenter': { rice: 3.5, beans: 2.75 },
       }
 
-      const price = prices[store.storeName]?.[ingredient.name]
-      return price ? { price, unit: ingredient.unit, available: true, source: 'api' } : null
+      const price = prices[storeName]?.[ingredient]
+      return price ? [{ price }] : []
     })
 
     const result = await buildShoppingList('user-1', 'plan-1')

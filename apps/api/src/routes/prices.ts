@@ -8,7 +8,7 @@ import {
   persistBestStore,
   scanPrices,
 } from '../services/pricingService'
-import { processScanReward } from '../services/rewardsService'
+import { awardBites, processScanReward } from '../services/rewardsService'
 import { getPriceTrend, getAiPriceSuggestion } from '../services/priceTrendService'
 import { markActionComplete } from '../services/onboardingService'
 
@@ -19,6 +19,44 @@ const TIER_STORE_LIMITS = {
 } as const
 
 export async function pricesRoute(app: FastifyInstance) {
+  app.get(
+    '/calibration-status',
+    {
+      preHandler: verifyJWT,
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+      const userId = (request as any).userId as string
+      const stapleTargets = ['eggs', 'milk', 'bread', 'rice', 'chicken']
+      const observations = await prisma.priceObservation.findMany({
+        where: { userId, scannedAt: { gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 120) } },
+        select: { productName: true, upc: true },
+        take: 500,
+      })
+
+      const matchedStaples = new Set<string>()
+      const uniqueUpcs = new Set<string>()
+
+      for (const observation of observations) {
+        uniqueUpcs.add(observation.upc)
+        const product = observation.productName?.toLowerCase() ?? ''
+        for (const staple of stapleTargets) {
+          if (product.includes(staple)) matchedStaples.add(staple)
+        }
+      }
+
+      const progressCount = Math.min(5, Math.max(matchedStaples.size, Math.min(5, uniqueUpcs.size)))
+      const missingStaples = stapleTargets.filter((staple) => !matchedStaples.has(staple))
+
+      return reply.status(200).send({
+        complete: progressCount >= 5,
+        progressCount,
+        targetCount: 5,
+        missingStaples: missingStaples.slice(0, 3),
+      })
+    }
+  )
+
   app.get<{ Querystring: { recipeId?: string; planId?: string } }>(
     '/scan',
     {
@@ -75,6 +113,7 @@ export async function pricesRoute(app: FastifyInstance) {
   app.post<{
     Body: {
       upc?: string
+      productName?: string
       storeId?: string
       storeName?: string
       storeLocation?: unknown
@@ -89,7 +128,7 @@ export async function pricesRoute(app: FastifyInstance) {
     },
     async (request, reply) => {
       const userId = (request as any).userId as string
-      const { upc, storeId, storeName, storeLocation, price, unitSize } = request.body ?? {}
+      const { upc, productName, storeId, storeName, storeLocation, price, unitSize } = request.body ?? {}
 
       if (!upc || typeof upc !== 'string') {
         return reply.status(400).send({ error: 'upc is required' })
@@ -110,6 +149,7 @@ export async function pricesRoute(app: FastifyInstance) {
       const observation = await prisma.priceObservation.create({
         data: {
           upc,
+          productName: typeof productName === 'string' ? productName : null,
           storeId,
           storeName,
           storeLocation: storeLocation as object,
@@ -120,9 +160,27 @@ export async function pricesRoute(app: FastifyInstance) {
       })
 
       const bites = await processScanReward(userId, observation as any)
+      let impactBonus = 0
+      const normalizedProductName = typeof productName === 'string' ? productName.trim().toLowerCase() : ''
+      if (normalizedProductName.length > 0) {
+        const previousCoverage = await prisma.priceObservation.count({
+          where: {
+            storeId,
+            id: { not: observation.id },
+            productName: { contains: normalizedProductName, mode: 'insensitive' },
+            scannedAt: { gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 120) },
+          },
+        })
+        if (previousCoverage === 0) {
+          impactBonus = 3
+          await awardBites(userId, impactBonus, 'PRICE_SCAN', observation.id)
+          bites.totalAwarded += impactBonus
+          bites.breakdown.push({ amount: impactBonus, reason: 'PRICE_SCAN' })
+        }
+      }
       await markActionComplete(userId, 'first_scan')
 
-      return reply.status(201).send({ observationId: observation.id, bites })
+      return reply.status(201).send({ observationId: observation.id, bites, impactBonus })
     }
   )
 

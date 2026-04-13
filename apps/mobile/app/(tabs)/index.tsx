@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, TouchableOpacity, ScrollView, ActivityIndicator
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useMealPlanStore } from '../../stores/mealPlanStore'
 import { useAuthStore } from '../../stores/authStore'
+import { useProfileStore } from '../../stores/profileStore'
 import { MealPlanCard } from '../../components/MealPlanCard'
 import { OnboardingChecklist } from '../../components/OnboardingChecklist'
 import { TipBanner } from '../../components/TipBanner'
@@ -32,6 +33,7 @@ export default function HomeScreen() {
   const { plan, isGenerating, error, setPlan, clearPlan, setGenerating, setError } = useMealPlanStore()
   const token = useAuthStore((s) => s.token)
   const user = useAuthStore((s) => s.user)
+  const weeklyBudget = useProfileStore((s) => s.weeklyBudget)
 
   const [announcements, setAnnouncements] = React.useState<Announcement[]>([])
   const [dismissedAnnouncements, setDismissedAnnouncements] = React.useState<string[]>([])
@@ -43,6 +45,12 @@ export default function HomeScreen() {
     firstScan: false,
     firstPurchase: false,
   })
+  const [calibration, setCalibration] = React.useState<{
+    complete: boolean
+    progressCount: number
+    targetCount: number
+    missingStaples: string[]
+  } | null>(null)
 
   // Load dismissed state from AsyncStorage
   React.useEffect(() => {
@@ -60,6 +68,16 @@ export default function HomeScreen() {
     if (!token) return
     apiClient.get<{ announcements: Announcement[] }>('/announcements', token)
       .then((data) => setAnnouncements(data.announcements ?? []))
+      .catch(() => {})
+  }, [token])
+
+  React.useEffect(() => {
+    if (!token) return
+    apiClient.get<{ complete: boolean; progressCount: number; targetCount: number; missingStaples: string[] }>(
+      '/prices/calibration-status',
+      token
+    )
+      .then((data) => setCalibration(data))
       .catch(() => {})
   }, [token])
 
@@ -103,6 +121,19 @@ export default function HomeScreen() {
 
   const visibleAnnouncements = announcements.filter((a) => !dismissedAnnouncements.includes(a.id))
   const nextTip = showStartupTip ? CONTEXTUAL_TIPS[0] : null
+  const pricedMealsCount = plan?.meals.filter((meal) => meal.bestStore && meal.bestStore.trim().length > 0).length ?? 0
+  const coveragePct = plan && plan.meals.length > 0 ? Math.round((pricedMealsCount / plan.meals.length) * 100) : 0
+  const confidencePct = Math.round(35 + ((100 - 35) * coveragePct) / 100)
+  const uncertaintyFactor = (100 - confidencePct) / 100
+  const projectedLow = plan ? Math.max(0, plan.totalEstCost * (1 - uncertaintyFactor * 0.2)) : 0
+  const projectedHigh = plan ? plan.totalEstCost * (1 + uncertaintyFactor * 0.35) : 0
+  const budgetRisk = !plan
+    ? null
+    : projectedHigh > weeklyBudget
+      ? 'HIGH'
+      : plan.totalEstCost > weeklyBudget
+        ? 'MEDIUM'
+        : 'LOW'
 
   // Sync plan from server on mount — ensures the local store always reflects the
   // current user's plan, not a stale plan cached from a previous session/account.
@@ -190,6 +221,37 @@ export default function HomeScreen() {
         <TipBanner tipId={nextTip.id} text={nextTip.text} onDismiss={dismissTip} />
       )}
 
+      {calibration && !calibration.complete ? (
+        <View style={styles.infoCard}>
+          <Text style={styles.infoTitle}>
+            Calibrate your store: {calibration.progressCount}/{calibration.targetCount} scans
+          </Text>
+          <Text style={styles.infoBody}>
+            Scan 5 staples to improve local estimate accuracy quickly.
+            {calibration.missingStaples.length > 0
+              ? ` Try: ${calibration.missingStaples.join(', ')}.`
+              : ''}
+          </Text>
+          <TouchableOpacity style={styles.infoBtn} onPress={() => router.push('/scanner')}>
+            <Text style={styles.infoBtnText}>Start scanning staples</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
+      {plan ? (
+        <View style={styles.infoCard}>
+          <Text style={styles.infoTitle}>
+            Weekly budget guardrail ({budgetRisk ?? 'LOW'} risk)
+          </Text>
+          <Text style={styles.infoBody}>
+            Projected spend range: ${projectedLow.toFixed(0)} - ${projectedHigh.toFixed(0)} vs ${weeklyBudget.toFixed(0)} budget.
+            {budgetRisk === 'HIGH'
+              ? ' Scan more prices to tighten estimates and avoid overspending.'
+              : ' Keep scanning to improve confidence.'}
+          </Text>
+        </View>
+      ) : null}
+
       {error && (
         <View style={styles.errorBox}>
           <Text style={styles.errorText}>{error}</Text>
@@ -252,4 +314,23 @@ const styles = StyleSheet.create({
     borderColor: '#fecaca',
   },
   errorText: { color: '#dc2626', fontSize: 14 },
+  infoCard: {
+    backgroundColor: '#ecfeff',
+    borderColor: '#a5f3fc',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
+  infoTitle: { fontSize: 14, fontWeight: '700', color: '#0f766e', marginBottom: 4 },
+  infoBody: { fontSize: 13, color: '#155e75', lineHeight: 18 },
+  infoBtn: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    backgroundColor: '#0f766e',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  infoBtnText: { color: '#fff', fontSize: 12, fontWeight: '600' },
 })

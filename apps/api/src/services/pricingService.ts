@@ -1,6 +1,4 @@
 import { TX_STORE_SEED } from '../data/txStores'
-import { queryKrogerProduct } from '../lib/kroger'
-import { queryMealMe } from '../lib/mealme'
 import { prisma } from '../lib/prisma'
 import { redis } from '../lib/redis'
 
@@ -52,7 +50,8 @@ export interface StoreItemResult {
   price: number
   unit: string
   available: boolean
-  source: 'api' | 'estimate'
+  source: 'community' | 'estimate'
+  estimateTier?: 'store_recent' | 'regional_market' | 'regionalized_baseline' | 'baseline'
 }
 
 export interface StoreScanResult {
@@ -79,6 +78,11 @@ export interface PriceScanResult {
   storeResults: StoreScanResult[]
   cached: boolean
   hasAnyPrices: boolean
+  knownSubtotal: number
+  estimatedSubtotal: number
+  coveragePct: number
+  confidencePct: number
+  missingIngredients: string[]
   message?: string
 }
 
@@ -113,41 +117,126 @@ async function getIngredientPrice(
   ingredient: RecipeIngredient,
   store: ScanStore
 ): Promise<StoreItemResult> {
-  const mealMeResult = await queryMealMe({ ingredient, store })
-  if (mealMeResult) {
+  const ingredientName = ingredient.name.toLowerCase().trim()
+
+  const sameStoreObservations = await prisma.priceObservation.findMany({
+    where: {
+      storeId: store.storeId,
+      productName: { contains: ingredientName, mode: 'insensitive' },
+      scannedAt: { gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 90) },
+    },
+    orderBy: { scannedAt: 'desc' },
+    take: 25,
+  })
+
+  if (sameStoreObservations.length > 0) {
+    const avg = sameStoreObservations.reduce((sum, observation) => sum + observation.price, 0) / sameStoreObservations.length
     return {
       ingredient: ingredient.name,
-      price: roundCurrency(mealMeResult.price),
-      unit: mealMeResult.unit,
+      price: roundCurrency(avg),
+      unit: ingredient.unit,
       available: true,
-      source: 'api',
+      source: 'community',
+      estimateTier: 'store_recent',
     }
   }
 
-  if (store.chain === 'kroger') {
-    const krogerResult = await queryKrogerProduct({ ingredient, store })
-    if (krogerResult) {
-      return {
-        ingredient: ingredient.name,
-        price: roundCurrency(krogerResult.price),
-        unit: krogerResult.unit,
-        available: true,
-        source: 'api',
-      }
+  const regionalObservations = await prisma.priceObservation.findMany({
+    where: {
+      productName: { contains: ingredientName, mode: 'insensitive' },
+      scannedAt: { gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 120) },
+    },
+    orderBy: { scannedAt: 'desc' },
+    take: 50,
+  })
+
+  if (regionalObservations.length > 0) {
+    const avg = regionalObservations.reduce((sum, observation) => sum + observation.price, 0) / regionalObservations.length
+    return {
+      ingredient: ingredient.name,
+      price: roundCurrency(avg),
+      unit: ingredient.unit,
+      available: false,
+      source: 'estimate',
+      estimateTier: 'regional_market',
     }
   }
 
+  const baseline = getBaselineIngredientPrice(ingredientName)
+  const regionalizedBaseline = await applyStoreRegionalMultiplier(baseline, store.storeId)
   return {
     ingredient: ingredient.name,
-    price: 0,
+    price: roundCurrency(regionalizedBaseline),
     unit: ingredient.unit,
     available: false,
     source: 'estimate',
+    estimateTier: baseline === regionalizedBaseline ? 'baseline' : 'regionalized_baseline',
   }
+}
+
+function getBaselineIngredientPrice(ingredientName: string): number {
+  const baselineCatalog: Array<{ keywords: string[]; price: number }> = [
+    { keywords: ['egg'], price: 3.5 },
+    { keywords: ['milk'], price: 3.9 },
+    { keywords: ['bread'], price: 3.2 },
+    { keywords: ['rice'], price: 2.8 },
+    { keywords: ['chicken'], price: 5.6 },
+    { keywords: ['beef'], price: 7.4 },
+    { keywords: ['tomato'], price: 2.6 },
+    { keywords: ['onion'], price: 1.8 },
+    { keywords: ['cheese'], price: 4.3 },
+    { keywords: ['pasta'], price: 2.2 },
+    { keywords: ['beans'], price: 1.9 },
+    { keywords: ['lettuce'], price: 2.5 },
+  ]
+
+  const match = baselineCatalog.find((entry) => entry.keywords.some((keyword) => ingredientName.includes(keyword)))
+  if (match) return match.price
+  return 3.5
+}
+
+async function applyStoreRegionalMultiplier(baselinePrice: number, storeId: string): Promise<number> {
+  const since = new Date(Date.now() - 1000 * 60 * 60 * 24 * 180)
+  const [storeAggregate, marketAggregate] = await Promise.all([
+    prisma.priceObservation.aggregate({
+      _avg: { price: true },
+      where: { storeId, scannedAt: { gte: since } },
+    }),
+    prisma.priceObservation.aggregate({
+      _avg: { price: true },
+      where: { scannedAt: { gte: since } },
+    }),
+  ])
+
+  const storeAvg = storeAggregate._avg.price
+  const marketAvg = marketAggregate._avg.price
+  if (!storeAvg || !marketAvg || marketAvg <= 0) return baselinePrice
+
+  const multiplier = Math.min(1.4, Math.max(0.7, storeAvg / marketAvg))
+  return baselinePrice * multiplier
 }
 
 function getTotalCost(items: StoreItemResult[]): number {
   return roundCurrency(items.reduce((sum, item) => sum + item.price, 0))
+}
+
+function getKnownSubtotal(items: StoreItemResult[]): number {
+  return roundCurrency(items.filter((item) => item.available).reduce((sum, item) => sum + item.price, 0))
+}
+
+function getEstimatedSubtotal(items: StoreItemResult[]): number {
+  return roundCurrency(items.filter((item) => !item.available).reduce((sum, item) => sum + item.price, 0))
+}
+
+function getCoveragePct(items: StoreItemResult[]): number {
+  if (items.length === 0) return 0
+  const knownCount = items.filter((item) => item.available).length
+  return Math.round((knownCount / items.length) * 100)
+}
+
+function getConfidencePct(coveragePct: number): number {
+  const base = 35
+  return Math.round(base + ((100 - base) * coveragePct) / 100)
 }
 
 export function computeBestSplitOption(
@@ -250,7 +339,12 @@ export async function scanPrices(input: {
       storeResults,
       cached: false,
       hasAnyPrices: false,
-      message: 'No live price data is available right now. Showing your selected stores so you can still compare availability.',
+      knownSubtotal: 0,
+      estimatedSubtotal: getEstimatedSubtotal(fallbackStore.items),
+      coveragePct: 0,
+      confidencePct: getConfidencePct(0),
+      missingIngredients: fallbackStore.items.map((item) => item.ingredient),
+      message: 'Community pricing is still sparse for this recipe. These totals are estimate-first and will improve as more scans come in.',
     }
 
     try {
@@ -273,6 +367,11 @@ export async function scanPrices(input: {
     storeResults: rankedStores,
     cached: false,
     hasAnyPrices: true,
+    knownSubtotal: getKnownSubtotal(rankedStores[0].items),
+    estimatedSubtotal: getEstimatedSubtotal(rankedStores[0].items),
+    coveragePct: getCoveragePct(rankedStores[0].items),
+    confidencePct: getConfidencePct(getCoveragePct(rankedStores[0].items)),
+    missingIngredients: rankedStores[0].items.filter((item) => !item.available).map((item) => item.ingredient),
   }
 
   try {
@@ -282,6 +381,13 @@ export async function scanPrices(input: {
         bestSingleStore: result.bestSingleStore,
         bestSplitOption: result.bestSplitOption,
         storeResults: result.storeResults,
+        hasAnyPrices: result.hasAnyPrices,
+        knownSubtotal: result.knownSubtotal,
+        estimatedSubtotal: result.estimatedSubtotal,
+        coveragePct: result.coveragePct,
+        confidencePct: result.confidencePct,
+        missingIngredients: result.missingIngredients,
+        message: result.message,
       }),
       'EX',
       PRICE_CACHE_TTL_SECONDS

@@ -48,6 +48,11 @@ interface PriceScanResponse {
   storeResults: PriceStoreResult[]
   cached: boolean
   hasAnyPrices: boolean
+  knownSubtotal: number
+  estimatedSubtotal: number
+  coveragePct: number
+  confidencePct: number
+  missingIngredients: string[]
   message?: string
 }
 
@@ -261,8 +266,8 @@ export default function RecipeDetailScreen() {
   const pricingItems = selectedStore?.items ?? priceData?.bestSingleStore.items ?? []
   const pricedItemsCount = pricingItems.filter((item) => item.available).length
   const pricingCoverageTotal = Math.max(pricingItems.length, recipe.ingredients.length, 1)
-  const pricingCoveragePct = Math.round((pricedItemsCount / pricingCoverageTotal) * 100)
-  const pricingConfidencePct = Math.round(
+  const pricingCoveragePct = priceData?.coveragePct ?? Math.round((pricedItemsCount / pricingCoverageTotal) * 100)
+  const pricingConfidencePct = priceData?.confidencePct ?? Math.round(
     BASE_ESTIMATE_CONFIDENCE + ((100 - BASE_ESTIMATE_CONFIDENCE) * pricingCoveragePct) / 100
   )
   const isEstimatedPricing = pricingConfidencePct < 100
@@ -278,9 +283,12 @@ export default function RecipeDetailScreen() {
       )
     }
   }
-  const unavailableAcrossStores = [...ingredientAvailabilityByAnyStore.entries()]
+  const unavailableAcrossStoresFromItems = [...ingredientAvailabilityByAnyStore.entries()]
     .filter(([, available]) => !available)
     .map(([ingredient]) => ingredient)
+  const unavailableAcrossStores = priceData?.missingIngredients?.length
+    ? priceData.missingIngredients
+    : unavailableAcrossStoresFromItems
 
   return (
     <>
@@ -354,6 +362,11 @@ export default function RecipeDetailScreen() {
                   These totals are crowd-sourced estimates and get more accurate as the community scans more items.
                   Scan prices while shopping to help everyone save money and eat better.
                 </Text>
+                {unavailableAcrossStores.length > 0 ? (
+                  <TouchableOpacity style={styles.noticeScanBtn} onPress={() => router.push('/scanner')}>
+                    <Text style={styles.noticeScanBtnText}>Scan missing prices now</Text>
+                  </TouchableOpacity>
+                ) : null}
               </View>
             ) : null}
 
@@ -385,6 +398,9 @@ export default function RecipeDetailScreen() {
                   : undefined
               }
             />
+            <Text style={styles.subtotalNote}>
+              Known subtotal ${priceData.knownSubtotal.toFixed(2)} + estimated unknown items ${priceData.estimatedSubtotal.toFixed(2)}
+            </Text>
 
             <PriceCompareBar
               storeResults={priceData.storeResults.map((store) => ({
@@ -683,6 +699,16 @@ const styles = StyleSheet.create({
   },
   noticeTitle: { fontSize: 14, fontWeight: '700', color: '#92400e' },
   noticeBody: { fontSize: 13, lineHeight: 19, color: '#a16207' },
+  noticeScanBtn: {
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    backgroundColor: '#a16207',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  noticeScanBtnText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  subtotalNote: { fontSize: 12, color: '#6b7280' },
   modeRow: { flexDirection: 'row', gap: 10 },
   modeChip: {
     borderRadius: 999,
