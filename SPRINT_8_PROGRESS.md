@@ -1,6 +1,6 @@
 # Sprint 8 Progress — App Store Ready
 
-## Current Status: 70% Complete
+## Current Status: 75% Complete (as of Apr 12, 2026)
 
 ### Completed Tasks
 
@@ -26,6 +26,13 @@
 - **Terms of Service**: 19 sections covering pricing, trials, liability, arbitration, geographic limitations (Texas-only)
 - **Index page**: Navigation hub linking both documents
 - All links to third-party privacy policies included
+
+#### ✅ Task #7: Supabase Production Setup
+- **Upgraded to Pro tier** ($25/month) — includes daily backups, point-in-time recovery
+- **Enabled RLS** on all 30 tables
+- **Created RLS policies** (35+ policies) in `supabase/rls-policies.sql`
+- **Policies deployed**: Users can only access own data, public can read shared data
+- **Production-ready**: Full user isolation for data security
 
 #### ✅ Task #8: EAS Build Configuration
 - **Created**: `eas.json` with production, preview, and development profiles
@@ -56,6 +63,27 @@
 - Verify all text and metadata in App Store Connect
 - Configure TestFlight internal testing group
 - Generate and test build
+
+---
+
+### Next Immediate Step
+
+#### 🚀 Task #8B: Deploy API to Railway (Blocking TestFlight)
+**Status**: Ready to start
+
+**What you need:**
+- Railway account (free)
+- Production Supabase project (✅ done)
+- API environment variables (ANTHROPIC_API_KEY, SPOONACULAR_KEY, EDAMAM_KEY, SENTRY_DSN)
+
+**What we'll do:**
+1. Create Railway account
+2. Connect GitHub repo
+3. Set environment variables
+4. Deploy API (5 min)
+5. Get production URL (e.g., `https://api.savvyspoon.app`)
+
+**Next after this**: EAS build → TestFlight submission
 
 ---
 

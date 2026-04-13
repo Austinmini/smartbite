@@ -11,7 +11,7 @@ import { getApiBaseUrl } from '../../lib/apiBaseUrl'
 import { FavouriteButton } from '../../components/FavouriteButton'
 import { CollectionPicker } from '../../components/CollectionPicker'
 import { useSavedRecipesStore } from '../../stores/savedRecipesStore'
-import { trackEvent } from '../../lib/analytics'
+import { trackEvent } from '@/lib/analytics'
 
 interface PriceAlert {
   id: string
