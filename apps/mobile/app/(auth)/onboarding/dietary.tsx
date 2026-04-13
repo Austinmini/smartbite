@@ -22,6 +22,17 @@ const ALLERGIES = [
   { key: 'soy', label: 'Soy', emoji: '🫘' },
 ]
 
+const CUISINES = [
+  { key: 'chinese', label: 'Chinese', emoji: '🥟' },
+  { key: 'indian', label: 'Indian', emoji: '🍛' },
+  { key: 'mediterranean', label: 'Mediterranean', emoji: '🫒' },
+  { key: 'italian', label: 'Italian', emoji: '🍝' },
+  { key: 'korean', label: 'Korean', emoji: '🍲' },
+  { key: 'mexican', label: 'Mexican', emoji: '🌮' },
+  { key: 'thai', label: 'Thai', emoji: '🍜' },
+  { key: 'american', label: 'American', emoji: '🍔' },
+]
+
 function ChipGrid({ items, selected, onToggle }: {
   items: { key: string; label: string; emoji: string }[]
   selected: string[]
@@ -54,7 +65,7 @@ function ChipGrid({ items, selected, onToggle }: {
 
 export default function DietaryScreen() {
   const router = useRouter()
-  const { dietaryGoals, allergies, setDietaryGoals, setAllergies } = useProfileStore()
+  const { dietaryGoals, allergies, cuisinePrefs, setDietaryGoals, setAllergies, setCuisinePrefs } = useProfileStore()
 
   function toggleGoal(key: string) {
     if (dietaryGoals.includes(key)) {
@@ -72,9 +83,17 @@ export default function DietaryScreen() {
     }
   }
 
+  function toggleCuisine(key: string) {
+    if (cuisinePrefs.includes(key)) {
+      setCuisinePrefs(cuisinePrefs.filter((cuisine) => cuisine !== key))
+    } else {
+      setCuisinePrefs([...cuisinePrefs, key])
+    }
+  }
+
   return (
     <View style={styles.container}>
-      <Text style={styles.step}>Step 3 of 4</Text>
+      <Text style={styles.step}>Step 4 of 5</Text>
       <Text style={styles.title}>Dietary preferences</Text>
       <Text style={styles.subtitle}>Help us personalise your meal plan. All optional.</Text>
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll}>
@@ -83,6 +102,9 @@ export default function DietaryScreen() {
 
         <Text style={styles.sectionLabel}>Allergies & restrictions</Text>
         <ChipGrid items={ALLERGIES} selected={allergies} onToggle={toggleAllergy} />
+
+        <Text style={styles.sectionLabel}>Cuisine preferences</Text>
+        <ChipGrid items={CUISINES} selected={cuisinePrefs} onToggle={toggleCuisine} />
 
         <View style={{ height: 100 }} />
       </ScrollView>

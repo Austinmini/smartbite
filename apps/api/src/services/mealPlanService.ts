@@ -41,8 +41,8 @@ export interface GeneratedPlan {
 
 // ─── Generate ─────────────────────────────────────────────────────────────────
 
-const TEST_PLAN_DAY_COUNT = 1
-const TEST_PLAN_MEAL_TYPES = ['BREAKFAST', 'LUNCH', 'DINNER'] as const
+const PLAN_DAY_COUNT = 7
+const PLAN_MEAL_TYPES = ['BREAKFAST', 'LUNCH', 'DINNER'] as const
 
 function roundCurrency(amount: number): number {
   return Math.round(amount * 100) / 100
@@ -96,7 +96,7 @@ export async function generateMealPlan(input: GeneratePlanInput): Promise<Genera
 
   const prompt = `You are a nutritionist and meal planning assistant.
 
-Generate a test meal plan with exactly ${TEST_PLAN_DAY_COUNT} day and exactly ${TEST_PLAN_MEAL_TYPES.length} meals total for a user with these requirements:
+Generate a weekly meal plan with exactly ${PLAN_DAY_COUNT} days for a user with these requirements:
 - Weekly food budget: $${weekBudget}
 - Dietary goals: ${profile.dietaryGoals.join(', ') || 'balanced'}
 - Allergies / restrictions: ${profile.allergies.join(', ') || 'none'}
@@ -105,12 +105,12 @@ Generate a test meal plan with exactly ${TEST_PLAN_DAY_COUNT} day and exactly ${
 - Servings per meal: ${profile.servings}
 ${favouritesContext}
 
-For this testing plan:
-- Return exactly one day with "dayOfWeek": 0
-- Include exactly these meals in order: BREAKFAST, LUNCH, DINNER
-- Do not include any other days or meal types
+Plan requirements:
+- Return exactly 7 days with dayOfWeek values 0, 1, 2, 3, 4, 5, 6
+- For each day include exactly these meals in order: BREAKFAST, LUNCH, DINNER
+- Do not include any meal types beyond BREAKFAST, LUNCH, DINNER
 
-Be concise: keep ingredient lists to 5-8 items and instructions to 3-5 steps per meal.
+Be concise to keep JSON compact: ingredient lists should be 4-6 items and instructions should be 2-4 steps per meal.
 
 Respond ONLY with a valid JSON object in this exact shape:
 {
@@ -134,7 +134,7 @@ Respond ONLY with a valid JSON object in this exact shape:
   ]
 }`
 
-  const maxTokens = tier === 'FREE' ? 5000 : 8000
+  const maxTokens = tier === 'FREE' ? 7000 : 12000
 
   const response = await anthropic.messages.create({
     model: AI_MODELS.MEAL_PLAN,
@@ -279,7 +279,7 @@ Respond ONLY with a valid JSON object in this exact shape:
 }`
 
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
+    model: AI_MODELS.MEAL_PLAN,
     max_tokens: 2000,
     messages: [{ role: 'user', content: singleMealPrompt }],
   })

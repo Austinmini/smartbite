@@ -2,8 +2,8 @@
 // Override any model via environment variable — no code changes needed.
 
 export const AI_MODELS = {
-  // Full Claude Sonnet for complex, creative tasks
-  MEAL_PLAN:       process.env.AI_MODEL_MEAL_PLAN       ?? 'claude-sonnet-4-6',
+  // Haiku for structured generation tasks with lower cost
+  MEAL_PLAN:       process.env.AI_MODEL_MEAL_PLAN       ?? 'claude-haiku-4-5-20251001',
   RECIPE_GENERATE: process.env.AI_MODEL_RECIPE_GENERATE ?? 'claude-sonnet-4-6',
 
   // Haiku for lightweight, structured tasks (~88% cheaper than Sonnet)

@@ -47,6 +47,11 @@ describe('profileStore', () => {
     expect(useProfileStore.getState().weeklyBudget).toBe(140)
   })
 
+  it('sets preferred retailers directly and caps at two', () => {
+    useProfileStore.getState().setPreferredRetailers(['heb', 'walmart', 'kroger'])
+    expect(useProfileStore.getState().preferredRetailers).toEqual(['heb', 'walmart'])
+  })
+
   it('toggles specific nearby stores and derives preferred retailers from them', () => {
     const hebStore = {
       id: 'store-heb-1',

@@ -27,7 +27,7 @@ export default function LocationScreen() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync()
       if (status !== 'granted') {
-        Alert.alert('Location required', 'SmartBite needs your location to find nearby stores.')
+        Alert.alert('Location required', 'SavvySpoon needs your location to find nearby stores.')
         setLoadingLocation(false)
         return
       }
@@ -79,13 +79,13 @@ export default function LocationScreen() {
 
   return (
     <View style={styles.container} testID="location-screen">
-      <Text style={styles.step}>Step 1 of 4</Text>
+      <Text style={styles.step}>Step 1 of 5</Text>
       <Text style={styles.title}>Find your stores</Text>
       <Text style={styles.subtitle}>Pick up to 2 stores you shop at regularly.</Text>
 
       {!locationGranted ? (
         <View style={styles.permissionBox}>
-          <Text style={styles.permissionText}>SmartBite needs your location to find stores near you.</Text>
+          <Text style={styles.permissionText}>SavvySpoon needs your location to find stores near you.</Text>
           <TouchableOpacity style={styles.btn} onPress={requestLocation} disabled={loadingLocation} testID="location-allow-btn">
             {loadingLocation
               ? <ActivityIndicator color="#fff" />
@@ -109,7 +109,7 @@ export default function LocationScreen() {
 
       <TouchableOpacity
         style={[styles.btn, selectedStores.length === 0 && styles.btnDisabled]}
-        onPress={() => router.push('/(auth)/onboarding/budget')}
+        onPress={() => router.push('/(auth)/onboarding/servings')}
         disabled={selectedStores.length === 0}
         testID="continue-btn"
       >

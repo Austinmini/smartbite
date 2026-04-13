@@ -3,11 +3,9 @@ import { StyleSheet, Text, View, TextInput, TouchableOpacity } from 'react-nativ
 import { useRouter } from 'expo-router'
 import { useProfileStore } from '@/stores/profileStore'
 
-const PRESETS = [50, 75, 100, 150, 200]
-
 export default function BudgetScreen() {
   const router = useRouter()
-  const { weeklyBudget, setWeeklyBudget } = useProfileStore()
+  const { weeklyBudget, servings, setWeeklyBudget } = useProfileStore()
   const [input, setInput] = useState(weeklyBudget > 0 ? String(weeklyBudget) : '')
 
   function selectPreset(amount: number) {
@@ -22,13 +20,29 @@ export default function BudgetScreen() {
   }
 
   const budget = parseInt(input, 10) || 0
-  const valid = budget >= 20 && budget <= 1000
+  const valid = budget >= 20 && budget <= 2000
+  const householdGuide =
+    servings <= 1
+      ? 'Single person: $50–$150+'
+      : servings <= 3
+        ? 'Couple: $150–$250'
+        : 'Family of 4: $200–$350+'
+  const presets =
+    servings <= 1
+      ? [50, 75, 100, 125, 150]
+      : servings <= 3
+        ? [150, 175, 200, 225, 250]
+        : [200, 250, 300, 325, 350]
 
   return (
     <View style={styles.container}>
-      <Text style={styles.step}>Step 2 of 4</Text>
+      <Text style={styles.step}>Step 3 of 5</Text>
       <Text style={styles.title}>Weekly food budget</Text>
       <Text style={styles.subtitle}>How much do you want to spend on groceries per week?</Text>
+      <View style={styles.guideCard}>
+        <Text style={styles.guideTitle}>Suggested range for {servings} serving{servings === 1 ? '' : 's'}</Text>
+        <Text style={styles.guideText}>{householdGuide}</Text>
+      </View>
 
       <View style={styles.inputRow}>
         <Text style={styles.dollar}>$</Text>
@@ -45,7 +59,7 @@ export default function BudgetScreen() {
       </View>
 
       <View style={styles.presets}>
-        {PRESETS.map((p) => (
+        {presets.map((p) => (
           <TouchableOpacity
             key={p}
             style={[styles.preset, budget === p && styles.presetSelected]}
@@ -57,7 +71,7 @@ export default function BudgetScreen() {
       </View>
 
       {input.length > 0 && !valid && (
-        <Text style={styles.hint}>Enter an amount between $20 and $1,000</Text>
+        <Text style={styles.hint}>Enter an amount between $20 and $2,000</Text>
       )}
 
       <View style={styles.spacer} />
@@ -78,6 +92,16 @@ const styles = StyleSheet.create({
   step: { fontSize: 13, color: '#9ca3af', fontWeight: '500', marginBottom: 4 },
   title: { fontSize: 28, fontWeight: '700', color: '#1a1a1a', marginBottom: 8 },
   subtitle: { fontSize: 16, color: '#666', marginBottom: 32 },
+  guideCard: {
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+  },
+  guideTitle: { fontSize: 13, fontWeight: '700', color: '#166534', marginBottom: 4 },
+  guideText: { fontSize: 14, color: '#166534' },
   inputRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 2, borderColor: '#22c55e', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, marginBottom: 20 },
   dollar: { fontSize: 28, fontWeight: '700', color: '#22c55e', marginRight: 4 },
   input: { flex: 1, fontSize: 32, fontWeight: '700', color: '#1a1a1a' },

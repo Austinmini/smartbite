@@ -52,6 +52,16 @@ interface PriceScanResponse {
 }
 
 const API_BASE = getApiBaseUrl()
+const BASE_ESTIMATE_CONFIDENCE = 35
+
+function formatMissingIngredientsLine(ingredients: string[]): string {
+  if (ingredients.length === 0) return ''
+  const preview = ingredients.slice(0, 3).join(', ')
+  const remaining = ingredients.length - 3
+  return remaining > 0
+    ? `No live pricing yet for: ${preview} +${remaining} more`
+    : `No live pricing yet for: ${preview}`
+}
 
 export default function RecipeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -248,6 +258,29 @@ export default function RecipeDetailScreen() {
   const { recipe } = meal
   const selectedStore = priceData?.storeResults.find((store) => store.storeId === selectedStoreId)
   const hasAnyPrices = priceData?.hasAnyPrices ?? false
+  const pricingItems = selectedStore?.items ?? priceData?.bestSingleStore.items ?? []
+  const pricedItemsCount = pricingItems.filter((item) => item.available).length
+  const pricingCoverageTotal = Math.max(pricingItems.length, recipe.ingredients.length, 1)
+  const pricingCoveragePct = Math.round((pricedItemsCount / pricingCoverageTotal) * 100)
+  const pricingConfidencePct = Math.round(
+    BASE_ESTIMATE_CONFIDENCE + ((100 - BASE_ESTIMATE_CONFIDENCE) * pricingCoveragePct) / 100
+  )
+  const isEstimatedPricing = pricingConfidencePct < 100
+  const unavailableInSelectedStore = pricingItems
+    .filter((item) => !item.available)
+    .map((item) => item.ingredient)
+  const ingredientAvailabilityByAnyStore = new Map<string, boolean>()
+  for (const store of priceData?.storeResults ?? []) {
+    for (const item of store.items) {
+      ingredientAvailabilityByAnyStore.set(
+        item.ingredient,
+        (ingredientAvailabilityByAnyStore.get(item.ingredient) ?? false) || item.available
+      )
+    }
+  }
+  const unavailableAcrossStores = [...ingredientAvailabilityByAnyStore.entries()]
+    .filter(([, available]) => !available)
+    .map(([ingredient]) => ingredient)
 
   return (
     <>
@@ -284,7 +317,7 @@ export default function RecipeDetailScreen() {
         <View style={styles.metaRow}>
           <Text style={styles.metaItem}>{recipe.readyInMinutes} min</Text>
           <Text style={styles.metaItem}>{recipe.servings} servings</Text>
-          <Text style={styles.metaItem}>~${meal.estCost.toFixed(2)} total</Text>
+          <Text style={styles.metaItem}>~${meal.estCost.toFixed(2)} estimated total</Text>
         </View>
       </View>
 
@@ -312,10 +345,25 @@ export default function RecipeDetailScreen() {
         {priceError ? <Text style={styles.errorText}>{priceError}</Text> : null}
         {priceData ? (
           <View style={styles.pricingStack}>
-            {!hasAnyPrices && priceData.message ? (
+            {isEstimatedPricing ? (
               <View style={styles.noticeCard}>
-                <Text style={styles.noticeTitle}>Live prices are temporarily unavailable</Text>
-                <Text style={styles.noticeBody}>{priceData.message}</Text>
+                <Text style={styles.noticeTitle}>
+                  Estimated pricing confidence: {pricingConfidencePct}%
+                </Text>
+                <Text style={styles.noticeBody}>
+                  These totals are crowd-sourced estimates and get more accurate as the community scans more items.
+                  Scan prices while shopping to help everyone save money and eat better.
+                </Text>
+              </View>
+            ) : null}
+
+            {!hasAnyPrices ? (
+              <View style={styles.noticeCard}>
+                <Text style={styles.noticeTitle}>No confirmed community prices yet for this recipe</Text>
+                <Text style={styles.noticeBody}>
+                  We start with a guess estimate, then improve it as real scans come in.
+                  Be one of the first to scan and help your community get better grocery pricing.
+                </Text>
               </View>
             ) : null}
 
@@ -324,7 +372,13 @@ export default function RecipeDetailScreen() {
               storeName={priceData.bestSingleStore.storeName}
               totalCost={priceData.bestSingleStore.totalCost}
               distanceMiles={priceData.bestSingleStore.distanceMiles}
-              totalLabel={hasAnyPrices ? undefined : 'Live prices unavailable'}
+              totalLabel={
+                !hasAnyPrices
+                  ? `Estimate pending (${pricingConfidencePct}% confidence)`
+                  : isEstimatedPricing
+                    ? `~$${priceData.bestSingleStore.totalCost.toFixed(2)} estimated`
+                    : undefined
+              }
               savingsLabel={
                 hasAnyPrices && priceData.bestSplitOption
                   ? `Split basket saves $${priceData.bestSplitOption.savings.toFixed(2)}`
@@ -367,14 +421,17 @@ export default function RecipeDetailScreen() {
 
             {priceMode === 'single' && selectedStore ? (
               <View style={styles.pricePanel}>
-                {selectedStore.items.map((item) => (
+                {selectedStore.items.filter((item) => item.available).map((item) => (
                   <View key={`${selectedStore.storeId}-${item.ingredient}`} style={styles.priceRow}>
                     <Text style={styles.priceIngredient}>{item.ingredient}</Text>
-                    <Text style={[styles.priceValue, !item.available && styles.priceValueMuted]}>
-                      {item.available ? `$${item.price.toFixed(2)}` : 'No live price at this store'}
-                    </Text>
+                    <Text style={styles.priceValue}>${item.price.toFixed(2)}</Text>
                   </View>
                 ))}
+                {unavailableInSelectedStore.length > 0 ? (
+                  <Text style={styles.missingSummary}>
+                    {formatMissingIngredientsLine(unavailableInSelectedStore)}
+                  </Text>
+                ) : null}
               </View>
             ) : null}
 
@@ -391,6 +448,11 @@ export default function RecipeDetailScreen() {
                     ))}
                   </View>
                 ))}
+                {unavailableAcrossStores.length > 0 ? (
+                  <Text style={styles.missingSummary}>
+                    {formatMissingIngredientsLine(unavailableAcrossStores)}
+                  </Text>
+                ) : null}
               </View>
             ) : null}
 
@@ -646,6 +708,7 @@ const styles = StyleSheet.create({
   priceIngredient: { fontSize: 14, color: '#111827', flex: 1 },
   priceValue: { fontSize: 14, fontWeight: '600', color: '#111827' },
   priceValueMuted: { color: '#6b7280', fontWeight: '500' },
+  missingSummary: { fontSize: 13, color: '#6b7280', marginTop: 4 },
   splitStack: { gap: 12 },
   splitCard: {
     borderRadius: 16,

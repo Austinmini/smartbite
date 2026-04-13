@@ -1,14 +1,27 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Alert } from 'react-native'
 import { useRouter } from 'expo-router'
 import { apiClient } from '@/lib/apiClient'
 import { useAuthStore } from '@/stores/authStore'
 import { useProfileStore } from '@/stores/profileStore'
+import { useMealPlanStore } from '@/stores/mealPlanStore'
 
 export default function CompleteScreen() {
   const router = useRouter()
   const token = useAuthStore((s) => s.token)
-  const { weeklyBudget, location, preferredRetailers, selectedStores, dietaryGoals, allergies, setOnboardingComplete } = useProfileStore()
+  const setPlan = useMealPlanStore((s) => s.setPlan)
+  const {
+    weeklyBudget,
+    location,
+    preferredRetailers,
+    selectedStores,
+    dietaryGoals,
+    allergies,
+    cuisinePrefs,
+    cookingTimeMax,
+    servings,
+    setOnboardingComplete,
+  } = useProfileStore()
   const [saving, setSaving] = useState(false)
 
   async function finishOnboarding() {
@@ -23,13 +36,29 @@ export default function CompleteScreen() {
           selectedStores,
           dietaryGoals,
           allergies,
+          cuisinePrefs,
+          cookingTimeMax,
+          servings,
         },
         token ?? undefined
       )
+
+      try {
+        const generated = await apiClient.post<{ plan: any }>('/plans/generate', {}, token ?? undefined)
+        if (generated?.plan) {
+          setPlan(generated.plan)
+        }
+      } catch (err: any) {
+        if (err?.status !== 429) {
+          Alert.alert('Plan generation delayed', 'Your profile was saved. You can generate your meal plan from Home.')
+        }
+      }
+
       setOnboardingComplete(true)
-      // Root layout will automatically redirect to /(tabs) once onboardingComplete is true
+      router.replace('/(tabs)')
     } catch (err: any) {
       Alert.alert('Error', 'Could not save your preferences. Please try again.')
+    } finally {
       setSaving(false)
     }
   }
@@ -41,15 +70,18 @@ export default function CompleteScreen() {
       <Text style={styles.subtitle}>Here's what we've got for you:</Text>
 
       <View style={styles.summary}>
+        <SummaryRow label="Servings" value={String(servings)} />
+        <SummaryRow label="Max cook time" value={`${cookingTimeMax} min`} />
         <SummaryRow label="Weekly budget" value={`$${weeklyBudget}`} />
         <SummaryRow label="Stores" value={selectedStores.length > 0 ? selectedStores.map((store) => store.name).join(', ') : '—'} />
         <SummaryRow label="Dietary goals" value={dietaryGoals.length > 0 ? dietaryGoals.join(', ') : 'None set'} />
         <SummaryRow label="Allergies" value={allergies.length > 0 ? allergies.join(', ') : 'None'} />
+        <SummaryRow label="Cuisines" value={cuisinePrefs.length > 0 ? cuisinePrefs.join(', ') : 'Any'} />
       </View>
 
       <View style={styles.spacer} />
       <TouchableOpacity style={styles.btn} onPress={finishOnboarding} disabled={saving} testID="continue-btn">
-        {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Generate my first meal plan</Text>}
+        {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Generate my first 7-day meal plan</Text>}
       </TouchableOpacity>
     </View>
   )

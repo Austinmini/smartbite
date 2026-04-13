@@ -82,14 +82,14 @@ describe('generateMealPlan', () => {
     ).rejects.toThrow()
   })
 
-  it('uses claude-sonnet-4-6 model', async () => {
+  it('uses the configured haiku meal-plan model', async () => {
     anthropicCreate.mockResolvedValue({
       content: [{ type: 'text', text: JSON.stringify(mockPlanData) }],
     })
 
     await generateMealPlan({ profile: mockProfile, weekBudget: 100 })
 
-    expect(anthropicCreate.mock.calls[0][0].model).toBe('claude-sonnet-4-6')
+    expect(anthropicCreate.mock.calls[0][0].model).toBe('claude-haiku-4-5-20251001')
   })
 
   it('includes dietary restrictions in the Claude prompt', async () => {
@@ -118,7 +118,7 @@ describe('generateMealPlan', () => {
     expect(prompt).toContain('150')
   })
 
-  it('requests a 3-meal testing plan instead of a full week', async () => {
+  it('requests a full 7-day weekly plan', async () => {
     anthropicCreate.mockResolvedValue({
       content: [{ type: 'text', text: JSON.stringify(mockPlanData) }],
     })
@@ -126,8 +126,8 @@ describe('generateMealPlan', () => {
     await generateMealPlan({ profile: mockProfile, weekBudget: 100 })
 
     const prompt = anthropicCreate.mock.calls[0][0].messages[0].content as string
-    expect(prompt).toContain('exactly 1 day')
-    expect(prompt).toContain('exactly 3 meals total')
+    expect(prompt).toContain('exactly 7 days')
+    expect(prompt).toContain('dayOfWeek values 0, 1, 2, 3, 4, 5, 6')
     expect(prompt).toContain('BREAKFAST, LUNCH, DINNER')
   })
 

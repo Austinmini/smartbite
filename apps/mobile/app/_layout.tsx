@@ -10,18 +10,12 @@ import { useProfileStore } from '@/stores/profileStore'
 import { useMealPlanStore } from '@/stores/mealPlanStore'
 import { configureRevenueCat, identifyRevenueCatUser, syncSubscription } from '@/lib/revenueCat'
 import { initSentry, setSentryUser } from '@/lib/sentry'
-import { PostHog } from 'posthog-react-native'
 import { setUserProperties, clearUserProperties } from '@/lib/analytics'
 // react-native-reanimated bare import omitted — causes import.meta error on web (Reanimated v4)
 // Re-add when animations are needed (Sprint 4+) and web bundling is resolved
 
 // Initialize Sentry on app startup
 initSentry()
-
-// Initialize PostHog analytics on app startup
-PostHog.setup(process.env.EXPO_PUBLIC_POSTHOG_KEY || '', {
-  host: process.env.EXPO_PUBLIC_POSTHOG_HOST || 'https://us.posthog.com',
-})
 
 export { ErrorBoundary } from 'expo-router'
 

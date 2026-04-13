@@ -38,7 +38,7 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container} testID="login-screen">
-      <Text style={styles.title}>SmartBite</Text>
+      <Text style={styles.title}>SavvySpoon</Text>
       <Text style={styles.subtitle}>Sign in to your account</Text>
       <TextInput
         style={styles.input}

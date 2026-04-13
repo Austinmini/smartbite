@@ -27,6 +27,7 @@ interface ProfileState {
 
   setOnboardingComplete: (v: boolean) => void
   setWeeklyBudget: (budget: number) => void
+  setPreferredRetailers: (chains: string[]) => void
   setLocation: (loc: ProfileState['location']) => void
   setNearbyStores: (stores: StoreItem[]) => void
   toggleStore: (store: StoreItem) => void
@@ -56,6 +57,11 @@ export const useProfileStore = create<ProfileState>()(
 
       setOnboardingComplete: (v) => set({ onboardingComplete: v }),
       setWeeklyBudget: (budget) => set({ weeklyBudget: budget }),
+      setPreferredRetailers: (chains) => {
+        const preferredRetailers = chains.slice(0, 2)
+        const selectedStores = get().selectedStores.filter((store) => preferredRetailers.includes(store.chain))
+        set({ preferredRetailers, selectedStores })
+      },
       setLocation: (loc) => set({ location: loc }),
       setNearbyStores: (stores) => set({ nearbyStores: stores }),
       toggleStore: (store) => {

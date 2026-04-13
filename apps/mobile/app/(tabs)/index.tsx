@@ -35,7 +35,7 @@ export default function HomeScreen() {
 
   const [announcements, setAnnouncements] = React.useState<Announcement[]>([])
   const [dismissedAnnouncements, setDismissedAnnouncements] = React.useState<string[]>([])
-  const [dismissedTips, setDismissedTips] = React.useState<string[]>([])
+  const [showStartupTip, setShowStartupTip] = React.useState(true)
   const [completedActions, setCompletedActions] = React.useState<ChecklistActions>({
     profileComplete: false,
     firstPlanGenerated: false,
@@ -48,12 +48,8 @@ export default function HomeScreen() {
   React.useEffect(() => {
     async function loadDismissed() {
       try {
-        const [annRaw, tipsRaw] = await Promise.all([
-          AsyncStorage.getItem('dismissed_announcements'),
-          AsyncStorage.getItem('dismissed_tips'),
-        ])
+        const annRaw = await AsyncStorage.getItem('dismissed_announcements')
         if (annRaw) setDismissedAnnouncements(JSON.parse(annRaw))
-        if (tipsRaw) setDismissedTips(JSON.parse(tipsRaw))
       } catch {}
     }
     loadDismissed()
@@ -101,14 +97,12 @@ export default function HomeScreen() {
     await AsyncStorage.setItem('dismissed_announcements', JSON.stringify(updated))
   }
 
-  async function dismissTip(tipId: string) {
-    const updated = [...dismissedTips, tipId]
-    setDismissedTips(updated)
-    await AsyncStorage.setItem('dismissed_tips', JSON.stringify(updated))
+  async function dismissTip(_tipId: string) {
+    setShowStartupTip(false)
   }
 
   const visibleAnnouncements = announcements.filter((a) => !dismissedAnnouncements.includes(a.id))
-  const nextTip = CONTEXTUAL_TIPS.find((t) => !dismissedTips.includes(t.id)) ?? null
+  const nextTip = showStartupTip ? CONTEXTUAL_TIPS[0] : null
 
   // Sync plan from server on mount — ensures the local store always reflects the
   // current user's plan, not a stale plan cached from a previous session/account.
@@ -185,7 +179,7 @@ export default function HomeScreen() {
         <AnnouncementBanner key={ann.id} announcement={ann} onDismiss={dismissAnnouncement} />
       ))}
 
-      <Text style={styles.title}>SmartBite</Text>
+      <Text style={styles.title}>SavvySpoon</Text>
       <Text style={styles.subtitle}>Your weekly meal plan</Text>
 
       {/* Onboarding checklist — auto-hides when all done */}
