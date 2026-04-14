@@ -44,6 +44,7 @@ export default function ScanConfirmScreen() {
   const [price, setPrice] = React.useState('')
   const [quantity, setQuantity] = React.useState('1')
   const [unit, setUnit] = React.useState('each')
+  const [productName, setProductName] = React.useState('')
   const [submitting, setSubmitting] = React.useState(false)
 
   React.useEffect(() => {
@@ -77,6 +78,10 @@ export default function ScanConfirmScreen() {
       Alert.alert('Invalid quantity', 'Please enter a valid quantity.')
       return
     }
+    if (notFound && !productName.trim()) {
+      Alert.alert('Product name required', 'Please enter what this product is so we can help others.')
+      return
+    }
 
     setSubmitting(true)
     try {
@@ -90,10 +95,13 @@ export default function ScanConfirmScreen() {
         unitSize: unit,
       })
 
+      // Use entered product name if not found, otherwise use database name
+      const finalProductName = notFound ? productName : product?.name ?? 'Item'
+
       // If came from shopping list, also record purchase
-      if (planId && itemKey && product) {
+      if (planId && itemKey) {
         const purchase = await apiClient.post<{ purchase: { id: string } }>('/purchases', {
-          itemName: product.name,
+          itemName: finalProductName,
           quantity: qtyNum,
           unit,
           pricePerUnit: priceNum / qtyNum,
@@ -103,7 +111,7 @@ export default function ScanConfirmScreen() {
         })
 
         await apiClient.post('/pantry/sync-purchase', {
-          itemName: product.name,
+          itemName: finalProductName,
           quantity: qtyNum,
           unit,
           storeName,
@@ -114,7 +122,7 @@ export default function ScanConfirmScreen() {
       router.replace({
         pathname: '/scanner/success',
         params: {
-          productName: product?.name ?? 'Item',
+          productName: finalProductName,
           storeName,
           price,
           planId: planId ?? '',
@@ -164,6 +172,20 @@ export default function ScanConfirmScreen() {
             )}
           </View>
         </View>
+
+        {notFound && (
+          <>
+            <Text style={styles.fieldLabel}>Product name</Text>
+            <TextInput
+              style={styles.input}
+              value={productName}
+              onChangeText={setProductName}
+              placeholder="e.g. Organic Chicken Breast"
+              testID="product-name-input"
+              autoCapitalize="words"
+            />
+          </>
+        )}
 
         <Text style={styles.storeLabel}>at {storeName}</Text>
 
