@@ -246,7 +246,7 @@ export async function generateMealPlan(input: GeneratePlanInput): Promise<Genera
           .join(', ')}. Use these as a guide for their taste preferences.`
       : ''
 
-  const prompt = `You are an expert culinary instructor and nutritionist creating personalized meal plans.
+  const prompt = `You are an expert culinary instructor creating personalized meal plans.
 
 CONTEXT:
 - Weekly food budget: $${weekBudget}
@@ -257,54 +257,29 @@ CONTEXT:
 - Servings: ${profile.servings}
 ${favouritesContext}
 
-REQUIREMENTS:
-Generate a ${dayCount}-day meal plan (${dayCount} days, 3 meals/day = ${dayCount * 3} recipes total).
-Each recipe should be complete, inspiring, and teach cooking skills.
+TASK:
+Generate a ${dayCount}-day meal plan (${dayCount * 3} recipes total - 3 per day).
+Each recipe should be complete, practical, and delicious.
 
-For EACH recipe, provide rich details:
-
-FLAVOR & EXPERIENCE:
-- flavorProfile: Describe taste in 1 sentence (e.g., "Bright, spicy, umami-rich with garlic warmth")
-- cuisineOrigin: Cultural/regional inspiration (e.g., "Thai street food")
+For EACH recipe:
+- title: Clear, appetizing name
+- ingredients: 5-7 items with amounts and units
+- instructions: 4-5 clear steps
+- readyInMinutes: Total time (prep + cooking)
+- estCostPerServing: Budget-conscious estimate
+- prepTime: Minutes to prep before cooking
+- equipmentNeeded: Tools needed (e.g., ["skillet", "knife"])
 - difficulty: "easy" | "medium" | "challenging"
-- dishType: Category (e.g., "Pan-seared", "Slow braise", "Raw salad")
-
-COOKING MASTERY:
-- cookingTips: 2-3 professional tips about heat, timing, or technique
-- techniques: List cooking methods used (e.g., ["pan-fry", "simmer"])
-- equipmentNeeded: Tools required (e.g., ["cast iron skillet", "whisk"])
-
-PRACTICAL HELP:
-- prepTime: Minutes to prep ingredients before cooking starts
-- canMakeAhead: What can be prepared 1-2 days in advance
-- storageInfo: How long it keeps and best storage method
-- substitutions: For 2-3 key ingredients, offer alternative options
-
-NUTRITIONAL CONTEXT:
-- nutritionContext: Tie to their dietary goals (e.g., "High-protein, low-carb")
-- healthBenefits: 2-3 specific health benefits (e.g., ["Supports digestion", "Rich in antioxidants"])
-- allergenWarnings: Any potential allergen concerns
-
-ELEVATION:
-- mealPairings.side: 2 suggested side dishes or accompaniments
-- mealPairings.beverage: 2 beverage suggestions
-- yieldDescription: Be specific (e.g., "Serves 4 with lunch leftovers")
-
-RECIPE STRUCTURE:
-- title: Evocative, descriptive name
-- ingredients: 6-8 items (richer variety)
-- instructions: 4-6 clear steps with technique hints
-- readyInMinutes: Realistic total time (including prep)
-- estCostPerServing: Budget-conscious pricing
-- tags: Use tags like ["quick", "one-pan", "make-ahead", "high-protein", "vegetarian", "spicy"]
-- nutrition: Accurate breakdown
+- nutrition: { calories, protein (g), carbs (g), fat (g) }
+- tags: ["quick", "one-pan", "high-protein", "vegetarian", etc]
+- allergenWarnings: List any common allergen concerns
+- nutritionContext: Brief tie to their dietary goals (one sentence)
 
 Plan requirements:
 - Return exactly ${dayCount} days with dayOfWeek values 0 through ${dayCount - 1}
-- For each day include exactly these meals in order: BREAKFAST, LUNCH, DINNER
-- Do not include any meal types beyond BREAKFAST, LUNCH, DINNER
+- Each day: BREAKFAST, LUNCH, DINNER (in that order)
 
-Respond ONLY with a valid JSON object in this exact shape:
+Respond ONLY with valid JSON:
 {
   "totalEstCost": number,
   "days": [
@@ -314,37 +289,25 @@ Respond ONLY with a valid JSON object in this exact shape:
         {
           "mealType": "BREAKFAST" | "LUNCH" | "DINNER",
           "title": string,
-          "flavorProfile": string,
-          "cuisineOrigin": string,
           "difficulty": "easy" | "medium" | "challenging",
-          "dishType": string,
           "estCostPerServing": number,
           "readyInMinutes": number,
           "prepTime": number,
-          "yieldDescription": string,
           "tags": string[],
           "ingredients": [{ "name": string, "amount": number, "unit": string }],
           "instructions": [{ "step": number, "text": string }],
-          "cookingTips": [string],
-          "techniques": [string],
           "equipmentNeeded": [string],
-          "canMakeAhead": string,
-          "storageInfo": string,
           "nutrition": { "calories": number, "protein": number, "carbs": number, "fat": number },
-          "nutritionContext": string,
-          "healthBenefits": [string],
           "allergenWarnings": [string],
-          "substitutions": [{ "ingredient": string, "substitutes": [string] }],
-          "mealPairings": { "side": [string], "beverage": [string] }
+          "nutritionContext": string
         }
       ]
     }
   ]
 }`
 
-  // Scale token limit based on dayCount and model
-  // Sonnet needs more tokens for detailed enriched recipes
-  const maxTokens = dayCount <= 2 ? 16000 : (tier === 'FREE' ? 8000 : 12000)
+  // Streamlined prompts require fewer tokens
+  const maxTokens = dayCount <= 2 ? 8000 : (tier === 'FREE' ? 4000 : 6000)
 
   try {
     const timeoutPromise = new Promise<never>((_, reject) =>
@@ -402,7 +365,7 @@ export async function generateDayMeals(
   const dayLabels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
   const dayLabel = dayLabels[dayOfWeek]
 
-  const singleDayPrompt = `You are an expert culinary instructor and nutritionist creating personalized meal recipes.
+  const singleDayPrompt = `You are an expert culinary instructor creating personalized meal recipes.
 
 CONTEXT:
 - Dietary goals: ${profile.dietaryGoals.join(', ') || 'balanced'}
@@ -412,74 +375,39 @@ CONTEXT:
 - Servings: ${profile.servings}
 
 TASK:
-Generate 3 meals for ${dayLabel} (BREAKFAST, LUNCH, DINNER). Each recipe should be complete, inspiring, and teach cooking skills.
+Generate 3 meals for ${dayLabel} (BREAKFAST, LUNCH, DINNER in order). Each should be practical, delicious, and stay within cooking time limits.
 
-For EACH recipe, provide rich details:
-
-FLAVOR & EXPERIENCE:
-- flavorProfile: Describe taste in 1 sentence (e.g., "Bright, spicy, umami-rich with garlic warmth")
-- cuisineOrigin: Cultural/regional inspiration (e.g., "Thai street food")
+For EACH recipe:
+- title: Clear, appetizing name
+- ingredients: 5-7 items with amounts and units
+- instructions: 4-5 clear steps
+- readyInMinutes: Total time (prep + cooking)
+- estCostPerServing: Budget-conscious estimate
+- prepTime: Minutes to prep before cooking
+- equipmentNeeded: Tools needed (e.g., ["skillet", "knife"])
 - difficulty: "easy" | "medium" | "challenging"
-- dishType: Category (e.g., "Pan-seared", "Slow braise", "Raw salad")
+- nutrition: { calories, protein (g), carbs (g), fat (g) }
+- tags: ["quick", "one-pan", "high-protein", "vegetarian", etc]
+- allergenWarnings: List any common allergen concerns
+- nutritionContext: Brief tie to their dietary goals (one sentence)
 
-COOKING MASTERY:
-- cookingTips: 2-3 professional tips about heat, timing, or technique
-- techniques: List cooking methods used (e.g., ["pan-fry", "simmer"])
-- equipmentNeeded: Tools required (e.g., ["cast iron skillet", "whisk"])
-
-PRACTICAL HELP:
-- prepTime: Minutes to prep ingredients before cooking starts
-- canMakeAhead: What can be prepared 1-2 days in advance
-- storageInfo: How long it keeps and best storage method
-- substitutions: For 2-3 key ingredients, offer alternative options
-
-NUTRITIONAL CONTEXT:
-- nutritionContext: Tie to their dietary goals (e.g., "High-protein, low-carb")
-- healthBenefits: 2-3 specific health benefits (e.g., ["Supports digestion", "Rich in antioxidants"])
-- allergenWarnings: Any potential allergen concerns
-
-ELEVATION:
-- mealPairings.side: 2 suggested side dishes or accompaniments
-- mealPairings.beverage: 2 beverage suggestions
-- yieldDescription: Be specific (e.g., "Serves 4 with lunch leftovers")
-
-RECIPE STRUCTURE:
-- title: Evocative, descriptive name
-- ingredients: 6-8 items (richer variety)
-- instructions: 4-6 clear steps with technique hints
-- readyInMinutes: Realistic total time (including prep)
-- estCostPerServing: Budget-conscious pricing
-- tags: Use tags like ["quick", "one-pan", "make-ahead", "high-protein", "vegetarian", "spicy"]
-- nutrition: Accurate breakdown
-
-Respond ONLY with a valid JSON object in this exact shape:
+Respond ONLY with valid JSON:
 {
   "meals": [
     {
       "mealType": "BREAKFAST" | "LUNCH" | "DINNER",
       "title": string,
-      "flavorProfile": string,
-      "cuisineOrigin": string,
       "difficulty": "easy" | "medium" | "challenging",
-      "dishType": string,
       "estCostPerServing": number,
       "readyInMinutes": number,
       "prepTime": number,
-      "yieldDescription": string,
       "tags": string[],
       "ingredients": [{ "name": string, "amount": number, "unit": string }],
       "instructions": [{ "step": number, "text": string }],
-      "cookingTips": [string],
-      "techniques": [string],
       "equipmentNeeded": [string],
-      "canMakeAhead": string,
-      "storageInfo": string,
       "nutrition": { "calories": number, "protein": number, "carbs": number, "fat": number },
-      "nutritionContext": string,
-      "healthBenefits": [string],
       "allergenWarnings": [string],
-      "substitutions": [{ "ingredient": string, "substitutes": [string] }],
-      "mealPairings": { "side": [string], "beverage": [string] }
+      "nutritionContext": string
     }
   ]
 }`
@@ -488,7 +416,7 @@ Respond ONLY with a valid JSON object in this exact shape:
   try {
     const response = await anthropic.messages.create({
       model: AI_MODELS.MEAL_PLAN,
-      max_tokens: 6000,
+      max_tokens: 3000,
       messages: [{ role: 'user', content: singleDayPrompt }],
     })
 
