@@ -100,7 +100,6 @@ export default function ScanConfirmScreen() {
 
       // Use entered product name if not found, otherwise use database name
       const finalProductName = notFound ? productName : product?.name ?? 'Item'
-      const finalStoreName = currentStoreName.trim() || 'Unknown Store'
 
       // If came from shopping list, also record purchase
       if (planId && itemKey) {
