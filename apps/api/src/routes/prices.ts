@@ -311,7 +311,7 @@ export async function pricesRoute(app: FastifyInstance) {
 
   // ── GET /prices/shopping-list/:planId ────────────────────────────────────────
 
-  app.get<{ Params: { planId: string } }>(
+  app.get<{ Params: { planId: string }; Querystring: { recipeId?: string } }>(
     '/shopping-list/:planId',
     {
       preHandler: verifyJWT,
@@ -319,13 +319,14 @@ export async function pricesRoute(app: FastifyInstance) {
     },
     async (request, reply) => {
       const userId = (request as any).userId as string
+      const { recipeId } = request.query
 
       try {
-        const result = await buildShoppingList(userId, request.params.planId)
+        const result = await buildShoppingList(userId, request.params.planId, recipeId)
         return reply.status(200).send(result)
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unable to build shopping list'
-        if (message === 'Meal plan not found') {
+        if (message === 'Meal plan not found' || message === 'Recipe not found in this plan') {
           return reply.status(404).send({ error: message })
         }
         return reply.status(500).send({ error: message })

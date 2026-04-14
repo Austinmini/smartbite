@@ -136,6 +136,25 @@ model Recipe {
   tags           String[]
   cuisineType    String[]
   diets          String[]
+
+  // Enrichment fields
+  flavorProfile  String?         // "Savory, umami-rich with fresh citrus"
+  cuisineOrigin  String?         // "Thai street food"
+  difficulty     String?         // "easy" | "medium" | "challenging"
+  dishType       String?         // "Pan-seared", "Slow braise", etc
+  cookingTips    String[]        // ["Toast spices first", ...]
+  techniques     String[]        // ["pan-fry", "simmer", ...]
+  equipmentNeeded String[]       // ["cast iron skillet", ...]
+  prepTime       Int?            // minutes for prep
+  canMakeAhead   String?         // "Prepare sauce up to 2 days ahead"
+  storageInfo    String?         // "Keeps 3 days refrigerated"
+  substitutions  Json?           // [{ ingredient: string, substitutes: string[] }]
+  nutritionContext String?       // "High-protein, low-carb"
+  healthBenefits String[]        // ["Supports digestion", ...]
+  allergenWarnings String[]      // ["Contains sesame", ...]
+  mealPairings   Json?           // { side: string[], beverage: string[], appetizer?: string }
+  yieldDescription String?       // "Serves 4 with leftovers"
+
   createdAt      DateTime        @default(now())
 
   meals          Meal[]

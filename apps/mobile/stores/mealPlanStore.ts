@@ -12,6 +12,42 @@ export interface MealRecipe {
   nutrition: { calories: number; protein: number; carbs: number; fat: number }
   tags: string[]
   imageUrl: string | null
+
+  // Flavor & Experience
+  flavorProfile?: string
+  cuisineOrigin?: string
+  difficulty?: 'easy' | 'medium' | 'challenging'
+  dishType?: string
+
+  // Cooking Guidance
+  cookingTips?: string[]
+  techniques?: string[]
+  equipmentNeeded?: string[]
+  prepTime?: number
+
+  // Practical Help
+  canMakeAhead?: string
+  storageInfo?: string
+  substitutions?: Array<{
+    ingredient: string
+    substitutes: string[]
+  }>
+
+  // Health Context
+  nutritionContext?: string
+  healthBenefits?: string[]
+  allergenWarnings?: string[]
+
+  // Pairings
+  mealPairings?: {
+    side?: string[]
+    beverage?: string[]
+    appetizer?: string
+  }
+
+  // Context
+  yieldDescription?: string
+  source?: 'ai_generated' | 'community' | 'imported'
 }
 
 export interface PlanMeal {

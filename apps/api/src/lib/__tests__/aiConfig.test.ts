@@ -18,7 +18,7 @@ describe('AI_MODELS config', () => {
 
     const { AI_MODELS } = require('../aiConfig')
 
-    expect(AI_MODELS.MEAL_PLAN).toBe('claude-sonnet-4-6')
+    expect(AI_MODELS.MEAL_PLAN).toBe('claude-haiku-4-5-20251001')
     expect(AI_MODELS.RECIPE_GENERATE).toBe('claude-sonnet-4-6')
     expect(AI_MODELS.PRICE_SUGGEST).toBe('claude-haiku-4-5-20251001')
     expect(AI_MODELS.REMINDERS).toBe('claude-haiku-4-5-20251001')

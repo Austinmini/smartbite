@@ -327,12 +327,115 @@ export default function RecipeDetailScreen() {
           <Text style={styles.metaItem}>{recipe.servings} servings</Text>
           <Text style={styles.metaItem}>~${meal.estCost.toFixed(2)} estimated total</Text>
         </View>
+
+        {/* Flavor Profile & Difficulty */}
+        {(recipe.flavorProfile || recipe.difficulty) && (
+          <View style={styles.badgeRow}>
+            {recipe.flavorProfile && (
+              <View style={styles.flavorBadge}>
+                <Text style={styles.flavorText}>{recipe.flavorProfile}</Text>
+              </View>
+            )}
+            {recipe.difficulty && (
+              <View style={[styles.difficultyBadge, styles[`difficulty${recipe.difficulty}`]]}>
+                <Text style={styles.difficultyText}>{recipe.difficulty}</Text>
+              </View>
+            )}
+          </View>
+        )}
       </View>
+
+      {/* Cuisine Origin & Dish Type */}
+      {(recipe.cuisineOrigin || recipe.dishType || recipe.yieldDescription) && (
+        <View style={styles.section}>
+          {recipe.cuisineOrigin && (
+            <Text style={styles.contextText}>🌍 {recipe.cuisineOrigin}</Text>
+          )}
+          {recipe.dishType && (
+            <Text style={styles.contextText}>🍳 {recipe.dishType}</Text>
+          )}
+          {recipe.yieldDescription && (
+            <Text style={styles.contextText}>🍽️ {recipe.yieldDescription}</Text>
+          )}
+        </View>
+      )}
 
       {/* Nutrition */}
       <View style={styles.section}>
         <NutritionCard nutrition={recipe.nutrition} />
       </View>
+
+      {/* Health Benefits & Allergen Warnings */}
+      {(recipe.nutritionContext || recipe.healthBenefits || recipe.allergenWarnings) && (
+        <View style={styles.section}>
+          {recipe.nutritionContext && (
+            <Text style={[styles.sectionTitle, styles.healthContextTitle]}>
+              💚 {recipe.nutritionContext}
+            </Text>
+          )}
+          {recipe.healthBenefits && recipe.healthBenefits.length > 0 && (
+            <>
+              <Text style={styles.subsectionTitle}>Health Benefits</Text>
+              {recipe.healthBenefits.map((benefit, i) => (
+                <Text key={i} style={styles.benefitText}>
+                  ✓ {benefit}
+                </Text>
+              ))}
+            </>
+          )}
+          {recipe.allergenWarnings && recipe.allergenWarnings.length > 0 && (
+            <>
+              <Text style={[styles.subsectionTitle, styles.warningTitle]}>Allergen Warnings</Text>
+              {recipe.allergenWarnings.map((warning, i) => (
+                <Text key={i} style={styles.warningText}>
+                  ⚠️ {warning}
+                </Text>
+              ))}
+            </>
+          )}
+        </View>
+      )}
+
+      {/* Prep & Equipment Info */}
+      {(recipe.prepTime || recipe.equipmentNeeded) && (
+        <View style={styles.section}>
+          <View style={styles.prepRow}>
+            {recipe.prepTime && (
+              <View style={styles.prepCard}>
+                <Text style={styles.prepLabel}>Prep Time</Text>
+                <Text style={styles.prepValue}>{recipe.prepTime} min</Text>
+              </View>
+            )}
+            {recipe.equipmentNeeded && recipe.equipmentNeeded.length > 0 && (
+              <View style={styles.prepCard}>
+                <Text style={styles.prepLabel}>Equipment</Text>
+                <Text style={styles.prepValue}>{recipe.equipmentNeeded.length} items</Text>
+              </View>
+            )}
+          </View>
+          {recipe.equipmentNeeded && recipe.equipmentNeeded.length > 0 && (
+            <View style={styles.equipmentList}>
+              {recipe.equipmentNeeded.map((tool, i) => (
+                <Text key={i} style={styles.equipmentItem}>
+                  • {tool}
+                </Text>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* Cooking Tips */}
+      {recipe.cookingTips && recipe.cookingTips.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>💡 Cooking Tips</Text>
+          {recipe.cookingTips.map((tip, i) => (
+            <Text key={i} style={styles.tipText}>
+              {i + 1}. {tip}
+            </Text>
+          ))}
+        </View>
+      )}
 
       {/* Ingredients */}
       <View style={styles.section} testID="ingredients-list">
@@ -346,6 +449,41 @@ export default function RecipeDetailScreen() {
           </View>
         ))}
       </View>
+
+      {/* Substitutions & Make-Ahead */}
+      {(recipe.substitutions || recipe.canMakeAhead || recipe.storageInfo) && (
+        <View style={styles.section}>
+          {recipe.substitutions && recipe.substitutions.length > 0 && (
+            <>
+              <Text style={styles.sectionTitle}>🔄 Substitutions</Text>
+              {recipe.substitutions.map((sub, i) => (
+                <View key={i} style={styles.substitutionCard}>
+                  <Text style={styles.substitutionIngredient}>{sub.ingredient}</Text>
+                  <Text style={styles.substitutionText}>
+                    Try: {sub.substitutes.join(', ')}
+                  </Text>
+                </View>
+              ))}
+            </>
+          )}
+          {(recipe.canMakeAhead || recipe.storageInfo) && (
+            <View style={styles.makeAheadCard}>
+              {recipe.canMakeAhead && (
+                <>
+                  <Text style={styles.makeAheadTitle}>⏰ Make Ahead</Text>
+                  <Text style={styles.makeAheadText}>{recipe.canMakeAhead}</Text>
+                </>
+              )}
+              {recipe.storageInfo && (
+                <>
+                  <Text style={[styles.makeAheadTitle, styles.storageTitle]}>🥶 Storage</Text>
+                  <Text style={styles.makeAheadText}>{recipe.storageInfo}</Text>
+                </>
+              )}
+            </View>
+          )}
+        </View>
+      )}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Live pricing</Text>
@@ -472,10 +610,13 @@ export default function RecipeDetailScreen() {
               </View>
             ) : null}
 
-            {plan ? (
+            {plan && meal ? (
               <TouchableOpacity
                 style={styles.shoppingListBtn}
-                onPress={() => router.push(`/shopping-list/${plan.id}`)}
+                onPress={() => router.push({
+                  pathname: '/shopping-list/[planId]',
+                  params: { planId: plan.id, recipeId: meal.recipe.id },
+                })}
               >
                 <Text style={styles.shoppingListBtnText}>Get shopping list</Text>
               </TouchableOpacity>
@@ -520,6 +661,33 @@ export default function RecipeDetailScreen() {
           </View>
         ))}
       </View>
+
+      {/* Meal Pairings */}
+      {recipe.mealPairings && (recipe.mealPairings.side || recipe.mealPairings.beverage) && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🍷 Pairings</Text>
+          {recipe.mealPairings.side && recipe.mealPairings.side.length > 0 && (
+            <>
+              <Text style={styles.pairingCategory}>Sides</Text>
+              {recipe.mealPairings.side.map((side, i) => (
+                <Text key={i} style={styles.pairingItem}>
+                  • {side}
+                </Text>
+              ))}
+            </>
+          )}
+          {recipe.mealPairings.beverage && recipe.mealPairings.beverage.length > 0 && (
+            <>
+              <Text style={[styles.pairingCategory, styles.beverageCategory]}>Beverages</Text>
+              {recipe.mealPairings.beverage.map((beverage, i) => (
+                <Text key={i} style={styles.pairingItem}>
+                  • {beverage}
+                </Text>
+              ))}
+            </>
+          )}
+        </View>
+      )}
 
       {/* Mark as Cooked */}
       <View style={styles.section}>
@@ -829,4 +997,45 @@ const styles = StyleSheet.create({
   alertRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e5e7eb' },
   alertText: { fontSize: 14, color: '#374151' },
   alertTriggered: { fontSize: 12, color: '#22c55e', fontWeight: '600' },
+
+  // Enrichment fields
+  badgeRow: { flexDirection: 'row', gap: 10, marginTop: 16, flexWrap: 'wrap' },
+  flavorBadge: { backgroundColor: '#f3f4f6', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
+  flavorText: { fontSize: 12, fontWeight: '600', color: '#374151' },
+  difficultyBadge: { borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
+  difficultyeasy: { backgroundColor: '#dcfce7', borderColor: '#22c55e', borderWidth: 1 },
+  difficultymedium: { backgroundColor: '#fef08a', borderColor: '#ca8a04', borderWidth: 1 },
+  difficultychallenging: { backgroundColor: '#fee2e2', borderColor: '#dc2626', borderWidth: 1 },
+  difficultyText: { fontSize: 12, fontWeight: '600', color: '#111827' },
+  contextText: { fontSize: 13, color: '#6b7280', marginVertical: 2 },
+  healthContextTitle: { color: '#15803d', marginBottom: 8 },
+  subsectionTitle: { fontSize: 13, fontWeight: '600', color: '#374151', marginTop: 12, marginBottom: 6 },
+  warningTitle: { color: '#b91c1c' },
+  benefitText: { fontSize: 13, color: '#374151', marginBottom: 4, marginLeft: 4 },
+  warningText: { fontSize: 13, color: '#991b1b', marginBottom: 4, marginLeft: 4 },
+
+  // Prep & Equipment
+  prepRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  prepCard: { flex: 1, backgroundColor: '#f9fafb', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#e5e7eb' },
+  prepLabel: { fontSize: 11, fontWeight: '600', color: '#6b7280', textTransform: 'uppercase' },
+  prepValue: { fontSize: 16, fontWeight: '700', color: '#22c55e', marginTop: 4 },
+  equipmentList: { marginTop: 12, gap: 4 },
+  equipmentItem: { fontSize: 13, color: '#374151' },
+
+  // Cooking Tips
+  tipText: { fontSize: 13, color: '#374151', lineHeight: 18, marginBottom: 8 },
+
+  // Substitutions
+  substitutionCard: { backgroundColor: '#fffbeb', borderRadius: 12, padding: 12, marginBottom: 12, borderLeftWidth: 4, borderLeftColor: '#f59e0b' },
+  substitutionIngredient: { fontSize: 14, fontWeight: '600', color: '#111827', marginBottom: 4 },
+  substitutionText: { fontSize: 13, color: '#6b7280' },
+  makeAheadCard: { backgroundColor: '#f0fdf4', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#bbf7d0' },
+  makeAheadTitle: { fontSize: 13, fontWeight: '600', color: '#15803d', marginBottom: 4 },
+  storageTitle: { marginTop: 12 },
+  makeAheadText: { fontSize: 13, color: '#374151' },
+
+  // Pairings
+  pairingCategory: { fontSize: 12, fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', marginTop: 10, marginBottom: 6 },
+  beverageCategory: { marginTop: 14 },
+  pairingItem: { fontSize: 13, color: '#374151', marginBottom: 3, marginLeft: 4 },
 })

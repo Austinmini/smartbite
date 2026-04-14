@@ -27,6 +27,41 @@ export interface GeneratedMeal {
   ingredients: Array<{ name: string; amount: number; unit: string }>
   instructions: Array<{ step: number; text: string }>
   nutrition: { calories: number; protein: number; carbs: number; fat: number }
+
+  // Flavor & Experience
+  flavorProfile?: string
+  cuisineOrigin?: string
+  difficulty?: 'easy' | 'medium' | 'challenging'
+  dishType?: string
+
+  // Cooking Guidance
+  cookingTips?: string[]
+  techniques?: string[]
+  equipmentNeeded?: string[]
+  prepTime?: number
+
+  // Practical Help
+  canMakeAhead?: string
+  storageInfo?: string
+  substitutions?: Array<{
+    ingredient: string
+    substitutes: string[]
+  }>
+
+  // Health Context
+  nutritionContext?: string
+  healthBenefits?: string[]
+  allergenWarnings?: string[]
+
+  // Pairings
+  mealPairings?: {
+    side?: string[]
+    beverage?: string[]
+    appetizer?: string
+  }
+
+  // Context
+  yieldDescription?: string
 }
 
 export interface GeneratedDay {
@@ -83,6 +118,121 @@ function parseJsonResponse<T>(rawText: string): T {
   }
 }
 
+function normalizeGeneratedMeal(
+  meal: Partial<GeneratedMeal> | undefined,
+  mealType: typeof PLAN_MEAL_TYPES[number],
+  profile: GeneratePlanInput['profile'],
+  dayOfWeek: number
+): GeneratedMeal {
+  const title = typeof meal?.title === 'string' && meal.title.trim().length > 0
+    ? meal.title
+    : `${mealType.toLowerCase()} plan for day ${dayOfWeek + 1}`
+
+  const estCostPerServing = typeof meal?.estCostPerServing === 'number' && meal.estCostPerServing > 0
+    ? meal.estCostPerServing
+    : Math.max(1.5, roundCurrency((profile.weeklyBudget / 21) * (mealType === 'DINNER' ? 1.25 : 0.9)))
+
+  const readyInMinutes = typeof meal?.readyInMinutes === 'number' && meal.readyInMinutes > 0
+    ? Math.min(Math.max(Math.round(meal.readyInMinutes), 5), profile.cookingTimeMax)
+    : Math.min(profile.cookingTimeMax, mealType === 'DINNER' ? 35 : 20)
+
+  const ingredients = Array.isArray(meal?.ingredients) && meal.ingredients.length > 0
+    ? meal.ingredients
+    : [
+        { name: 'olive oil', amount: 1, unit: 'tbsp' },
+        { name: 'garlic', amount: 1, unit: 'clove' },
+        { name: 'seasonal vegetables', amount: 2, unit: 'cup' },
+      ]
+
+  const instructions = Array.isArray(meal?.instructions) && meal.instructions.length > 0
+    ? meal.instructions
+    : [
+        { step: 1, text: 'Prep ingredients and season to taste.' },
+        { step: 2, text: 'Cook until tender and serve warm.' },
+      ]
+
+  return {
+    mealType,
+    title,
+    estCostPerServing,
+    readyInMinutes,
+    tags: Array.isArray(meal?.tags) ? meal.tags : [],
+    ingredients,
+    instructions,
+    nutrition: meal?.nutrition && typeof meal.nutrition === 'object'
+      ? meal.nutrition
+      : { calories: 450, protein: 25, carbs: 40, fat: 18 },
+    // Enrichment fields (optional)
+    flavorProfile: typeof meal?.flavorProfile === 'string' ? meal.flavorProfile : undefined,
+    cuisineOrigin: typeof meal?.cuisineOrigin === 'string' ? meal.cuisineOrigin : undefined,
+    difficulty: ['easy', 'medium', 'challenging'].includes(meal?.difficulty ?? '')
+      ? (meal?.difficulty as 'easy' | 'medium' | 'challenging')
+      : undefined,
+    dishType: typeof meal?.dishType === 'string' ? meal.dishType : undefined,
+    cookingTips: Array.isArray(meal?.cookingTips) ? meal.cookingTips : undefined,
+    techniques: Array.isArray(meal?.techniques) ? meal.techniques : undefined,
+    equipmentNeeded: Array.isArray(meal?.equipmentNeeded) ? meal.equipmentNeeded : undefined,
+    prepTime: typeof meal?.prepTime === 'number' ? meal.prepTime : undefined,
+    canMakeAhead: typeof meal?.canMakeAhead === 'string' ? meal.canMakeAhead : undefined,
+    storageInfo: typeof meal?.storageInfo === 'string' ? meal.storageInfo : undefined,
+    substitutions: Array.isArray(meal?.substitutions) ? meal.substitutions : undefined,
+    nutritionContext: typeof meal?.nutritionContext === 'string' ? meal.nutritionContext : undefined,
+    healthBenefits: Array.isArray(meal?.healthBenefits) ? meal.healthBenefits : undefined,
+    allergenWarnings: Array.isArray(meal?.allergenWarnings) ? meal.allergenWarnings : undefined,
+    mealPairings: meal?.mealPairings && typeof meal.mealPairings === 'object'
+      ? meal.mealPairings
+      : undefined,
+    yieldDescription: typeof meal?.yieldDescription === 'string' ? meal.yieldDescription : undefined,
+  }
+}
+
+function normalizeGeneratedPlan(
+  plan: GeneratedPlan,
+  profile: GeneratePlanInput['profile']
+): GeneratedPlan {
+  const dayMap = new Map<number, GeneratedDay>()
+  for (const day of plan.days ?? []) {
+    if (typeof day?.dayOfWeek !== 'number') continue
+    if (day.dayOfWeek < 0 || day.dayOfWeek > 6) continue
+    if (!dayMap.has(day.dayOfWeek)) dayMap.set(day.dayOfWeek, day)
+  }
+
+  const globalMeals = (plan.days ?? []).flatMap((day) => day?.meals ?? [])
+  const globalByType = new Map<string, GeneratedMeal>()
+  for (const meal of globalMeals) {
+    if (meal && typeof meal.mealType === 'string' && !globalByType.has(meal.mealType)) {
+      globalByType.set(meal.mealType, meal as GeneratedMeal)
+    }
+  }
+
+  const normalizedDays: GeneratedDay[] = []
+
+  for (let dayOfWeek = 0; dayOfWeek < PLAN_DAY_COUNT; dayOfWeek++) {
+    const sourceDay = dayMap.get(dayOfWeek)
+    const sourceMeals = sourceDay?.meals ?? []
+
+    const dayByType = new Map<string, GeneratedMeal>()
+    for (const meal of sourceMeals) {
+      if (meal && typeof meal.mealType === 'string' && !dayByType.has(meal.mealType)) {
+        dayByType.set(meal.mealType, meal as GeneratedMeal)
+      }
+    }
+
+    const meals = PLAN_MEAL_TYPES.map((mealType, index) => {
+      const chosen =
+        dayByType.get(mealType) ??
+        globalByType.get(mealType) ??
+        (sourceMeals[index] as GeneratedMeal | undefined)
+      return normalizeGeneratedMeal(chosen, mealType, profile, dayOfWeek)
+    })
+
+    normalizedDays.push({ dayOfWeek, meals })
+  }
+
+  const totalEstCost = getPlanEstimatedCost({ totalEstCost: 0, days: normalizedDays }, profile.servings)
+  return { totalEstCost, days: normalizedDays }
+}
+
 export async function generateMealPlan(input: GeneratePlanInput): Promise<GeneratedPlan> {
   const { profile, weekBudget, favourites, tier } = input
 
@@ -94,23 +244,63 @@ export async function generateMealPlan(input: GeneratePlanInput): Promise<Genera
           .join(', ')}. Use these as a guide for their taste preferences.`
       : ''
 
-  const prompt = `You are a nutritionist and meal planning assistant.
+  const prompt = `You are an expert culinary instructor and nutritionist creating personalized meal plans.
 
-Generate a weekly meal plan with exactly ${PLAN_DAY_COUNT} days for a user with these requirements:
+CONTEXT:
 - Weekly food budget: $${weekBudget}
 - Dietary goals: ${profile.dietaryGoals.join(', ') || 'balanced'}
-- Allergies / restrictions: ${profile.allergies.join(', ') || 'none'}
+- Allergies/restrictions: ${profile.allergies.join(', ') || 'none'}
 - Preferred cuisines: ${profile.cuisinePrefs.join(', ') || 'any'}
-- Max cooking time per meal: ${profile.cookingTimeMax} minutes
-- Servings per meal: ${profile.servings}
+- Max cooking time: ${profile.cookingTimeMax} min per meal
+- Servings: ${profile.servings}
 ${favouritesContext}
+
+REQUIREMENTS:
+Generate a 7-day meal plan (7 days, 3 meals/day = 21 recipes total).
+Each recipe should be complete, inspiring, and teach cooking skills.
+
+For EACH recipe, provide rich details:
+
+FLAVOR & EXPERIENCE:
+- flavorProfile: Describe taste in 1 sentence (e.g., "Bright, spicy, umami-rich with garlic warmth")
+- cuisineOrigin: Cultural/regional inspiration (e.g., "Thai street food")
+- difficulty: "easy" | "medium" | "challenging"
+- dishType: Category (e.g., "Pan-seared", "Slow braise", "Raw salad")
+
+COOKING MASTERY:
+- cookingTips: 2-3 professional tips about heat, timing, or technique
+- techniques: List cooking methods used (e.g., ["pan-fry", "simmer"])
+- equipmentNeeded: Tools required (e.g., ["cast iron skillet", "whisk"])
+
+PRACTICAL HELP:
+- prepTime: Minutes to prep ingredients before cooking starts
+- canMakeAhead: What can be prepared 1-2 days in advance
+- storageInfo: How long it keeps and best storage method
+- substitutions: For 2-3 key ingredients, offer alternative options
+
+NUTRITIONAL CONTEXT:
+- nutritionContext: Tie to their dietary goals (e.g., "High-protein, low-carb")
+- healthBenefits: 2-3 specific health benefits (e.g., ["Supports digestion", "Rich in antioxidants"])
+- allergenWarnings: Any potential allergen concerns
+
+ELEVATION:
+- mealPairings.side: 2 suggested side dishes or accompaniments
+- mealPairings.beverage: 2 beverage suggestions
+- yieldDescription: Be specific (e.g., "Serves 4 with lunch leftovers")
+
+RECIPE STRUCTURE:
+- title: Evocative, descriptive name
+- ingredients: 6-8 items (richer variety)
+- instructions: 4-6 clear steps with technique hints
+- readyInMinutes: Realistic total time (including prep)
+- estCostPerServing: Budget-conscious pricing
+- tags: Use tags like ["quick", "one-pan", "make-ahead", "high-protein", "vegetarian", "spicy"]
+- nutrition: Accurate breakdown
 
 Plan requirements:
 - Return exactly 7 days with dayOfWeek values 0, 1, 2, 3, 4, 5, 6
 - For each day include exactly these meals in order: BREAKFAST, LUNCH, DINNER
 - Do not include any meal types beyond BREAKFAST, LUNCH, DINNER
-
-Be concise to keep JSON compact: ingredient lists should be 4-6 items and instructions should be 2-4 steps per meal.
 
 Respond ONLY with a valid JSON object in this exact shape:
 {
@@ -122,19 +312,35 @@ Respond ONLY with a valid JSON object in this exact shape:
         {
           "mealType": "BREAKFAST" | "LUNCH" | "DINNER",
           "title": string,
+          "flavorProfile": string,
+          "cuisineOrigin": string,
+          "difficulty": "easy" | "medium" | "challenging",
+          "dishType": string,
           "estCostPerServing": number,
           "readyInMinutes": number,
+          "prepTime": number,
+          "yieldDescription": string,
           "tags": string[],
           "ingredients": [{ "name": string, "amount": number, "unit": string }],
           "instructions": [{ "step": number, "text": string }],
-          "nutrition": { "calories": number, "protein": number, "carbs": number, "fat": number }
+          "cookingTips": [string],
+          "techniques": [string],
+          "equipmentNeeded": [string],
+          "canMakeAhead": string,
+          "storageInfo": string,
+          "nutrition": { "calories": number, "protein": number, "carbs": number, "fat": number },
+          "nutritionContext": string,
+          "healthBenefits": [string],
+          "allergenWarnings": [string],
+          "substitutions": [{ "ingredient": string, "substitutes": [string] }],
+          "mealPairings": { "side": [string], "beverage": [string] }
         }
       ]
     }
   ]
 }`
 
-  const maxTokens = tier === 'FREE' ? 7000 : 12000
+  const maxTokens = tier === 'FREE' ? 11000 : 16000
 
   const response = await anthropic.messages.create({
     model: AI_MODELS.MEAL_PLAN,
@@ -143,7 +349,8 @@ Respond ONLY with a valid JSON object in this exact shape:
   })
 
   const text = response.content[0].type === 'text' ? response.content[0].text : ''
-  return parseJsonResponse<GeneratedPlan>(text)
+  const parsed = parseJsonResponse<GeneratedPlan>(text)
+  return normalizeGeneratedPlan(parsed, profile)
 }
 
 // ─── Save ─────────────────────────────────────────────────────────────────────
@@ -186,6 +393,23 @@ export async function saveMealPlan(userId: string, planData: GeneratedPlan, serv
                 tags: meal.tags,
                 cuisineType: [],
                 diets: [],
+                // Enrichment fields
+                flavorProfile: meal.flavorProfile,
+                cuisineOrigin: meal.cuisineOrigin,
+                difficulty: meal.difficulty,
+                dishType: meal.dishType,
+                cookingTips: meal.cookingTips ?? [],
+                techniques: meal.techniques ?? [],
+                equipmentNeeded: meal.equipmentNeeded ?? [],
+                prepTime: meal.prepTime,
+                canMakeAhead: meal.canMakeAhead,
+                storageInfo: meal.storageInfo,
+                substitutions: meal.substitutions,
+                nutritionContext: meal.nutritionContext,
+                healthBenefits: meal.healthBenefits ?? [],
+                allergenWarnings: meal.allergenWarnings ?? [],
+                mealPairings: meal.mealPairings,
+                yieldDescription: meal.yieldDescription,
               },
             },
           }))

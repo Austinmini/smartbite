@@ -51,6 +51,7 @@ export default function HomeScreen() {
     targetCount: number
     missingStaples: string[]
   } | null>(null)
+  const [showImprovePanel, setShowImprovePanel] = React.useState(false)
 
   // Load dismissed state from AsyncStorage
   React.useEffect(() => {
@@ -213,51 +214,13 @@ export default function HomeScreen() {
       <Text style={styles.title}>SavvySpoon</Text>
       <Text style={styles.subtitle}>Your weekly meal plan</Text>
 
-      {/* Onboarding checklist — auto-hides when all done */}
-      <OnboardingChecklist completedActions={completedActions} />
-
-      {/* Contextual tip banner */}
-      {nextTip && (
-        <TipBanner tipId={nextTip.id} text={nextTip.text} onDismiss={dismissTip} />
-      )}
-
-      {calibration && !calibration.complete ? (
-        <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>
-            Calibrate your store: {calibration.progressCount}/{calibration.targetCount} scans
-          </Text>
-          <Text style={styles.infoBody}>
-            Scan 5 staples to improve local estimate accuracy quickly.
-            {calibration.missingStaples.length > 0
-              ? ` Try: ${calibration.missingStaples.join(', ')}.`
-              : ''}
-          </Text>
-          <TouchableOpacity style={styles.infoBtn} onPress={() => router.push('/scanner')}>
-            <Text style={styles.infoBtnText}>Start scanning staples</Text>
-          </TouchableOpacity>
-        </View>
-      ) : null}
-
-      {plan ? (
-        <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>
-            Weekly budget guardrail ({budgetRisk ?? 'LOW'} risk)
-          </Text>
-          <Text style={styles.infoBody}>
-            Projected spend range: ${projectedLow.toFixed(0)} - ${projectedHigh.toFixed(0)} vs ${weeklyBudget.toFixed(0)} budget.
-            {budgetRisk === 'HIGH'
-              ? ' Scan more prices to tighten estimates and avoid overspending.'
-              : ' Keep scanning to improve confidence.'}
-          </Text>
-        </View>
-      ) : null}
-
       {error && (
         <View style={styles.errorBox}>
           <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
 
+      {/* Primary content first: recipe list / plan card */}
       {plan ? (
         <MealPlanCard plan={plan} onMealPress={handleMealPress} />
       ) : (
@@ -282,6 +245,53 @@ export default function HomeScreen() {
           )}
         </View>
       )}
+
+      {/* Secondary insights below the plan */}
+      {plan ? (
+        <View style={styles.infoCard}>
+          <Text style={styles.infoTitle}>
+            Budget guardrail: {budgetRisk ?? 'LOW'} risk
+          </Text>
+          <Text style={styles.infoBody}>
+            ${projectedLow.toFixed(0)} - ${projectedHigh.toFixed(0)} projected vs ${weeklyBudget.toFixed(0)} budget.
+            {budgetRisk === 'HIGH'
+              ? ' Tighten estimates by scanning a few missing prices.'
+              : ''}
+          </Text>
+        </View>
+      ) : null}
+
+      {calibration && !calibration.complete ? (
+        <View style={styles.infoCard}>
+          <Text style={styles.infoTitle}>
+            Calibration: {calibration.progressCount}/{calibration.targetCount}
+          </Text>
+          <Text style={styles.infoBody}>
+            Quick win: scan 5 staples to improve estimate accuracy.
+            {calibration.missingStaples.length > 0 ? ` Next: ${calibration.missingStaples.join(', ')}.` : ''}
+          </Text>
+          <TouchableOpacity style={styles.infoBtn} onPress={() => router.push('/scanner')}>
+            <Text style={styles.infoBtnText}>Scan staples</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
+      {/* Supporting widgets behind one toggle */}
+      <TouchableOpacity
+        style={styles.improveToggle}
+        onPress={() => setShowImprovePanel((current) => !current)}
+        testID="improve-plan-toggle"
+      >
+        <Text style={styles.improveToggleTitle}>Improve my plan</Text>
+        <Text style={styles.improveToggleIcon}>{showImprovePanel ? 'Hide' : 'Show'}</Text>
+      </TouchableOpacity>
+
+      {showImprovePanel ? (
+        <View style={styles.improvePanel}>
+          <OnboardingChecklist completedActions={completedActions} />
+          {nextTip && <TipBanner tipId={nextTip.id} text={nextTip.text} onDismiss={dismissTip} />}
+        </View>
+      ) : null}
     </ScrollView>
   )
 }
@@ -333,4 +343,20 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   infoBtnText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  improveToggle: {
+    marginTop: 6,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    minHeight: 44,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  improveToggleTitle: { fontSize: 14, fontWeight: '700', color: '#1f2937' },
+  improveToggleIcon: { fontSize: 13, fontWeight: '600', color: '#0f766e' },
+  improvePanel: { marginTop: 10, gap: 10 },
 })

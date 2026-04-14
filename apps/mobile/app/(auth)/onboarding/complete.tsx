@@ -5,6 +5,7 @@ import { apiClient } from '@/lib/apiClient'
 import { useAuthStore } from '@/stores/authStore'
 import { useProfileStore } from '@/stores/profileStore'
 import { useMealPlanStore } from '@/stores/mealPlanStore'
+import OnboardingLoadingModal from '@/components/LoadingScreens/OnboardingLoadingModal'
 
 export default function CompleteScreen() {
   const router = useRouter()
@@ -23,6 +24,7 @@ export default function CompleteScreen() {
     setOnboardingComplete,
   } = useProfileStore()
   const [saving, setSaving] = useState(false)
+  const [showLoadingModal, setShowLoadingModal] = useState(false)
 
   async function finishOnboarding() {
     setSaving(true)
@@ -43,6 +45,9 @@ export default function CompleteScreen() {
         token ?? undefined
       )
 
+      // Show educational loading screens during meal plan generation
+      setShowLoadingModal(true)
+
       try {
         const generated = await apiClient.post<{ plan: any }>('/plans/generate', {}, token ?? undefined)
         if (generated?.plan) {
@@ -55,8 +60,10 @@ export default function CompleteScreen() {
       }
 
       setOnboardingComplete(true)
+      setShowLoadingModal(false)
       router.replace('/(tabs)')
     } catch (err: any) {
+      setShowLoadingModal(false)
       Alert.alert('Error', 'Could not save your preferences. Please try again.')
     } finally {
       setSaving(false)
@@ -64,26 +71,30 @@ export default function CompleteScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.emoji}>🎉</Text>
-      <Text style={styles.title}>You're all set!</Text>
-      <Text style={styles.subtitle}>Here's what we've got for you:</Text>
+    <>
+      <View style={styles.container}>
+        <Text style={styles.emoji}>🎉</Text>
+        <Text style={styles.title}>You're all set!</Text>
+        <Text style={styles.subtitle}>Here's what we've got for you:</Text>
 
-      <View style={styles.summary}>
-        <SummaryRow label="Servings" value={String(servings)} />
-        <SummaryRow label="Max cook time" value={`${cookingTimeMax} min`} />
-        <SummaryRow label="Weekly budget" value={`$${weeklyBudget}`} />
-        <SummaryRow label="Stores" value={selectedStores.length > 0 ? selectedStores.map((store) => store.name).join(', ') : '—'} />
-        <SummaryRow label="Dietary goals" value={dietaryGoals.length > 0 ? dietaryGoals.join(', ') : 'None set'} />
-        <SummaryRow label="Allergies" value={allergies.length > 0 ? allergies.join(', ') : 'None'} />
-        <SummaryRow label="Cuisines" value={cuisinePrefs.length > 0 ? cuisinePrefs.join(', ') : 'Any'} />
+        <View style={styles.summary}>
+          <SummaryRow label="Servings" value={String(servings)} />
+          <SummaryRow label="Max cook time" value={`${cookingTimeMax} min`} />
+          <SummaryRow label="Weekly budget" value={`$${weeklyBudget}`} />
+          <SummaryRow label="Stores" value={selectedStores.length > 0 ? selectedStores.map((store) => store.name).join(', ') : '—'} />
+          <SummaryRow label="Dietary goals" value={dietaryGoals.length > 0 ? dietaryGoals.join(', ') : 'None set'} />
+          <SummaryRow label="Allergies" value={allergies.length > 0 ? allergies.join(', ') : 'None'} />
+          <SummaryRow label="Cuisines" value={cuisinePrefs.length > 0 ? cuisinePrefs.join(', ') : 'Any'} />
+        </View>
+
+        <View style={styles.spacer} />
+        <TouchableOpacity style={styles.btn} onPress={finishOnboarding} disabled={saving} testID="continue-btn">
+          {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Generate my first 7-day meal plan</Text>}
+        </TouchableOpacity>
       </View>
 
-      <View style={styles.spacer} />
-      <TouchableOpacity style={styles.btn} onPress={finishOnboarding} disabled={saving} testID="continue-btn">
-        {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Generate my first 7-day meal plan</Text>}
-      </TouchableOpacity>
-    </View>
+      <OnboardingLoadingModal visible={showLoadingModal} />
+    </>
   )
 }
 

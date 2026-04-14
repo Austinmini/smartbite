@@ -46,7 +46,7 @@ interface ConfirmSheet {
 }
 
 export default function ShoppingListScreen() {
-  const { planId } = useLocalSearchParams<{ planId: string }>()
+  const { planId, recipeId } = useLocalSearchParams<{ planId: string; recipeId?: string }>()
   const router = useRouter()
   const token = useAuthStore((state) => state.token)
   const { toggleItem, isChecked, getCheckedCount } = useShoppingListStore()
@@ -69,7 +69,10 @@ export default function ShoppingListScreen() {
         return
       }
       try {
-        const response = await apiClient.get<ShoppingListResponse>(`/prices/shopping-list/${planId}`, token)
+        const url = recipeId
+          ? `/prices/shopping-list/${planId}?recipeId=${recipeId}`
+          : `/prices/shopping-list/${planId}`
+        const response = await apiClient.get<ShoppingListResponse>(url, token)
         if (active) setData(response)
       } catch (err: any) {
         if (active) setError(err.message ?? 'Could not load shopping list.')
@@ -79,7 +82,7 @@ export default function ShoppingListScreen() {
     }
     loadShoppingList()
     return () => { active = false }
-  }, [planId, token])
+  }, [planId, recipeId, token])
 
   function openConfirmSheet(item: ShoppingListItem, storeName: string) {
     // Pre-fill from last purchase if available ("add same amount?")

@@ -185,7 +185,31 @@ describe('GET /shopping-list/:planId', () => {
 
     expect(res.statusCode).toBe(200)
     expect(res.json().stores[0].storeName).toBe('HEB')
-    expect(pricingMock.buildShoppingList).toHaveBeenCalledWith('user-1', 'plan-1')
+    expect(pricingMock.buildShoppingList).toHaveBeenCalledWith('user-1', 'plan-1', undefined)
+  })
+
+  it('filters to single recipe when recipeId provided', async () => {
+    pricingMock.buildShoppingList.mockResolvedValue({
+      planId: 'plan-1',
+      stores: [
+        {
+          storeName: 'HEB',
+          items: [
+            { key: 'rice|bag|HEB', ingredient: 'rice', amount: 1, unit: 'bag', checked: false },
+          ],
+        },
+      ],
+      totalItems: 1,
+    } as any)
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/prices/shopping-list/plan-1?recipeId=recipe-1',
+      headers: authHeaders(),
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(pricingMock.buildShoppingList).toHaveBeenCalledWith('user-1', 'plan-1', 'recipe-1')
   })
 
   it('returns 401 without auth', async () => {

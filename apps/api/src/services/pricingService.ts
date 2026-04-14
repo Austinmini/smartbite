@@ -427,7 +427,7 @@ export function getUserScanStores(profile: {
   })
 }
 
-export async function buildShoppingList(userId: string, planId: string) {
+export async function buildShoppingList(userId: string, planId: string, recipeId?: string) {
   const [plan, profile] = await Promise.all([
     prisma.mealPlan.findFirst({
       where: { id: planId, userId },
@@ -450,13 +450,20 @@ export async function buildShoppingList(userId: string, planId: string) {
     throw new Error('Meal plan not found')
   }
 
+  // Filter to single recipe if recipeId provided
+  const meals = recipeId ? plan.meals.filter((m) => m.recipe.id === recipeId) : plan.meals
+
+  if (recipeId && meals.length === 0) {
+    throw new Error('Recipe not found in this plan')
+  }
+
   const scanStores =
     profile && profile.preferredRetailers.length > 0
       ? getUserScanStores(profile).slice(0, Math.max(profile.maxStores ?? 1, 1))
       : []
 
   const mealsWithAssignedStores = await Promise.all(
-    plan.meals.map(async (meal) => {
+    meals.map(async (meal) => {
       if (meal.bestStore || scanStores.length === 0) return meal
 
       const result = await scanPrices({
@@ -478,7 +485,7 @@ export async function buildShoppingList(userId: string, planId: string) {
     })
   )
 
-  // Collect all unique ingredient names across all meals
+  // Collect all unique ingredient names across selected meals
   const allIngredientNames = new Set<string>()
   for (const meal of mealsWithAssignedStores) {
     for (const ing of normalizeIngredients(meal.recipe.ingredients)) {

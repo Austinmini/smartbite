@@ -1,0 +1,17 @@
+-- AlterTable
+ALTER TABLE "Recipe" ADD COLUMN     "allergenWarnings" TEXT[],
+ADD COLUMN     "canMakeAhead" TEXT,
+ADD COLUMN     "cookingTips" TEXT[],
+ADD COLUMN     "cuisineOrigin" TEXT,
+ADD COLUMN     "difficulty" TEXT,
+ADD COLUMN     "dishType" TEXT,
+ADD COLUMN     "equipmentNeeded" TEXT[],
+ADD COLUMN     "flavorProfile" TEXT,
+ADD COLUMN     "healthBenefits" TEXT[],
+ADD COLUMN     "mealPairings" JSONB,
+ADD COLUMN     "nutritionContext" TEXT,
+ADD COLUMN     "prepTime" INTEGER,
+ADD COLUMN     "storageInfo" TEXT,
+ADD COLUMN     "substitutions" JSONB,
+ADD COLUMN     "techniques" TEXT[],
+ADD COLUMN     "yieldDescription" TEXT;
