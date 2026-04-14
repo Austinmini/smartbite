@@ -45,6 +45,7 @@ export default function ScanConfirmScreen() {
   const [quantity, setQuantity] = React.useState('1')
   const [unit, setUnit] = React.useState('each')
   const [productName, setProductName] = React.useState('')
+  const [currentStoreName, setCurrentStoreName] = React.useState(storeName)
   const [submitting, setSubmitting] = React.useState(false)
 
   React.useEffect(() => {
@@ -85,11 +86,15 @@ export default function ScanConfirmScreen() {
 
     setSubmitting(true)
     try {
+      // Use provided storeId or generate from store name (e.g., "HEB" -> "heb")
+      const finalStoreId = storeId ?? currentStoreName.toLowerCase().replace(/[^a-z0-9]/g, '-')
+      const finalStoreName = currentStoreName.trim() || 'Unknown Store'
+
       // Submit community price observation
       await apiClient.post('/prices/observation', {
         upc,
-        storeId: storeId ?? storeName,
-        storeName,
+        storeId: finalStoreId,
+        storeName: finalStoreName,
         storeLocation: { lat: 0, lng: 0, address: '', city: '', state: 'TX' },
         price: priceNum,
         unitSize: unit,
@@ -97,6 +102,7 @@ export default function ScanConfirmScreen() {
 
       // Use entered product name if not found, otherwise use database name
       const finalProductName = notFound ? productName : product?.name ?? 'Item'
+      const finalStoreName = currentStoreName.trim() || 'Unknown Store'
 
       // If came from shopping list, also record purchase
       if (planId && itemKey) {
@@ -106,7 +112,7 @@ export default function ScanConfirmScreen() {
           unit,
           pricePerUnit: priceNum / qtyNum,
           totalPrice: priceNum,
-          storeName,
+          storeName: finalStoreName,
           planId,
         })
 
@@ -114,7 +120,7 @@ export default function ScanConfirmScreen() {
           itemName: finalProductName,
           quantity: qtyNum,
           unit,
-          storeName,
+          storeName: finalStoreName,
           purchaseId: purchase.purchase.id,
         })
       }
@@ -123,7 +129,7 @@ export default function ScanConfirmScreen() {
         pathname: '/scanner/success',
         params: {
           productName: finalProductName,
-          storeName,
+          storeName: finalStoreName,
           price,
           planId: planId ?? '',
           itemKey: itemKey ?? '',
@@ -187,7 +193,15 @@ export default function ScanConfirmScreen() {
           </>
         )}
 
-        <Text style={styles.storeLabel}>at {storeName}</Text>
+        <Text style={styles.fieldLabel}>Store name</Text>
+        <TextInput
+          style={styles.input}
+          value={currentStoreName}
+          onChangeText={setCurrentStoreName}
+          placeholder="e.g. HEB, Whole Foods, Walmart"
+          testID="store-name-input"
+          autoCapitalize="words"
+        />
 
         {/* Price input */}
         <Text style={styles.fieldLabel}>Shelf price ($)</Text>
