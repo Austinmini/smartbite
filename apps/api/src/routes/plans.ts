@@ -67,6 +67,7 @@ export async function plansRoute(app: FastifyInstance) {
     const planData = await generateMealPlan({
       profile: profile as any,
       weekBudget: profile.weeklyBudget,
+      tier: user.tier as 'FREE' | 'PLUS' | 'PRO',
       dayCount: dayCount && dayCount > 0 ? dayCount : 7,
     })
 
