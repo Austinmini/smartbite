@@ -342,17 +342,34 @@ Respond ONLY with a valid JSON object in this exact shape:
   ]
 }`
 
-  const maxTokens = tier === 'FREE' ? 8000 : 12000
+  // Scale token limit based on dayCount and model
+  // Sonnet needs more tokens for detailed enriched recipes
+  const maxTokens = dayCount <= 2 ? 16000 : (tier === 'FREE' ? 8000 : 12000)
 
-  const response = await anthropic.messages.create({
-    model: AI_MODELS.MEAL_PLAN,
-    max_tokens: maxTokens,
-    messages: [{ role: 'user', content: prompt }],
-  })
+  try {
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => {
+        reject(new Error('Claude API call timed out after 30 seconds. This may indicate rate limiting or network issues.'))
+      }, 30000)
+    )
 
-  const text = response.content[0].type === 'text' ? response.content[0].text : ''
-  const parsed = parseJsonResponse<GeneratedPlan>(text)
-  return normalizeGeneratedPlan(parsed, profile, dayCount)
+    const response = await Promise.race([
+      anthropic.messages.create({
+        model: AI_MODELS.MEAL_PLAN,
+        max_tokens: maxTokens,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+      timeoutPromise,
+    ])
+
+    const text = response.content[0].type === 'text' ? response.content[0].text : ''
+    const parsed = parseJsonResponse<GeneratedPlan>(text)
+    const normalized = normalizeGeneratedPlan(parsed, profile, dayCount)
+    return normalized
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Unknown error during meal plan generation'
+    throw new Error(`Meal plan generation failed: ${msg}`)
+  }
 }
 
 export async function generateDayMeals(
@@ -467,14 +484,20 @@ Respond ONLY with a valid JSON object in this exact shape:
   ]
 }`
 
-  const response = await anthropic.messages.create({
-    model: AI_MODELS.MEAL_PLAN,
-    max_tokens: 4000,
-    messages: [{ role: 'user', content: singleDayPrompt }],
-  })
+  let parsed
+  try {
+    const response = await anthropic.messages.create({
+      model: AI_MODELS.MEAL_PLAN,
+      max_tokens: 6000,
+      messages: [{ role: 'user', content: singleDayPrompt }],
+    })
 
-  const text = response.content[0].type === 'text' ? response.content[0].text : ''
-  const parsed = parseJsonResponse<{ meals: GeneratedMeal[] }>(text)
+    const text = response.content[0].type === 'text' ? response.content[0].text : ''
+    parsed = parseJsonResponse<{ meals: GeneratedMeal[] }>(text)
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Unknown error'
+    throw new Error(`Failed to generate meals for ${dayLabel}: ${msg}`)
+  }
 
   // Create recipes and meals for this day
   for (const meal of parsed.meals) {

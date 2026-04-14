@@ -64,12 +64,18 @@ export async function plansRoute(app: FastifyInstance) {
     }
 
     // Generate via Claude
-    const planData = await generateMealPlan({
-      profile: profile as any,
-      weekBudget: profile.weeklyBudget,
-      tier: user.tier as 'FREE' | 'PLUS' | 'PRO',
-      dayCount: dayCount && dayCount > 0 ? dayCount : 7,
-    })
+    let planData
+    try {
+      planData = await generateMealPlan({
+        profile: profile as any,
+        weekBudget: profile.weeklyBudget,
+        tier: user.tier as 'FREE' | 'PLUS' | 'PRO',
+        dayCount: dayCount && dayCount > 0 ? dayCount : 7,
+      })
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Unknown error'
+      return reply.status(500).send({ error: `Failed to generate meal plan: ${msg}` })
+    }
 
     // Save to DB
     const saved = await saveMealPlan(userId, planData, profile.servings)
