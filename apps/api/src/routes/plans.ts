@@ -9,6 +9,7 @@ import {
   getPlans,
   getMeal,
   regenerateMeal,
+  generateDayMeals,
 } from '../services/mealPlanService'
 import { markActionComplete } from '../services/onboardingService'
 
@@ -32,6 +33,7 @@ export async function plansRoute(app: FastifyInstance) {
   // ─── POST /plans/generate ──────────────────────────────────────────────────
   app.post('/generate', { preHandler: verifyJWT, config: { rateLimit: { max: 10, timeWindow: '1 hour' } } }, async (request, reply) => {
     const userId = (request as any).userId as string
+    const { dayCount } = (request.body as any) || {}
 
     // Fetch user tier
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { tier: true } })
@@ -65,6 +67,7 @@ export async function plansRoute(app: FastifyInstance) {
     const planData = await generateMealPlan({
       profile: profile as any,
       weekBudget: profile.weeklyBudget,
+      dayCount: dayCount && dayCount > 0 ? dayCount : 7,
     })
 
     // Save to DB
@@ -126,5 +129,48 @@ export async function plansRoute(app: FastifyInstance) {
 
     const result = await regenerateMeal(planId, mealId, profile as any)
     return reply.status(200).send(result)
+  })
+
+  // ─── POST /plans/:id/generate-day ───────────────────────────────────────────
+  app.post('/:id/generate-day', { preHandler: verifyJWT }, async (request, reply) => {
+    const userId = (request as any).userId as string
+    const { id: planId } = (request.params as any)
+    const { dayOfWeek } = (request.body as any) || {}
+
+    // Validate dayOfWeek
+    if (typeof dayOfWeek !== 'number' || dayOfWeek < 0 || dayOfWeek > 6) {
+      return reply.status(400).send({ error: 'dayOfWeek must be an integer between 0 and 6' })
+    }
+
+    // Verify plan belongs to user
+    const plan = await prisma.mealPlan.findUnique({
+      where: { id: planId },
+      select: { userId: true, meals: { where: { dayOfWeek } } },
+    })
+    if (!plan) {
+      return reply.status(404).send({ error: 'Plan not found' })
+    }
+    if (plan.userId !== userId) {
+      return reply.status(403).send({ error: 'Unauthorized' })
+    }
+
+    // Check if day already generated
+    if (plan.meals.length > 0) {
+      return reply.status(409).send({ error: `Meals already exist for day ${dayOfWeek}` })
+    }
+
+    // Fetch user profile
+    const profile = await prisma.userProfile.findUnique({ where: { userId } })
+    if (!profile) {
+      return reply.status(400).send({ error: 'Profile not found' })
+    }
+
+    try {
+      const updatedPlan = await generateDayMeals(planId, dayOfWeek, profile as any)
+      return reply.status(200).send({ plan: updatedPlan })
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Unknown error'
+      return reply.status(500).send({ error: msg })
+    }
   })
 }

@@ -49,7 +49,7 @@ export default function CompleteScreen() {
       setShowLoadingModal(true)
 
       try {
-        const generated = await apiClient.post<{ plan: any }>('/plans/generate', {}, token ?? undefined)
+        const generated = await apiClient.post<{ plan: any }>('/plans/generate', { dayCount: 2 }, token ?? undefined)
         if (generated?.plan) {
           setPlan(generated.plan)
         }
@@ -89,7 +89,7 @@ export default function CompleteScreen() {
 
         <View style={styles.spacer} />
         <TouchableOpacity style={styles.btn} onPress={finishOnboarding} disabled={saving} testID="continue-btn">
-          {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Generate my first 7-day meal plan</Text>}
+          {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Get started with meal planning</Text>}
         </TouchableOpacity>
       </View>
 

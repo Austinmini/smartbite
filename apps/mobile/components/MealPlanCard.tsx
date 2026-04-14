@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { StyleSheet, Text, TouchableOpacity, View, ScrollView } from 'react-native'
+import { StyleSheet, Text, TouchableOpacity, View, ScrollView, ActivityIndicator } from 'react-native'
 import type { MealPlan, PlanMeal } from '../stores/mealPlanStore'
 import { RecipeCard } from './RecipeCard'
 
@@ -9,9 +9,11 @@ const BASE_ESTIMATE_CONFIDENCE = 35
 interface Props {
   plan: MealPlan
   onMealPress: (meal: PlanMeal) => void
+  onGenerateDay?: (dayOfWeek: number) => void
+  generatingDay?: number | null
 }
 
-export function MealPlanCard({ plan, onMealPress }: Props) {
+export function MealPlanCard({ plan, onMealPress, onGenerateDay, generatingDay }: Props) {
   const [selectedDay, setSelectedDay] = useState(0)
 
   const mealsForDay = plan.meals.filter((m) => m.dayOfWeek === selectedDay)
@@ -60,7 +62,21 @@ export function MealPlanCard({ plan, onMealPress }: Props) {
       {/* Meals for selected day */}
       <View style={styles.meals}>
         {mealsForDay.length === 0 ? (
-          <Text style={styles.noMeals}>No meals planned for this day.</Text>
+          generatingDay === selectedDay ? (
+            <View style={styles.generatingContainer}>
+              <ActivityIndicator size="large" color="#22c55e" />
+              <Text style={styles.generatingText}>Generating meals...</Text>
+            </View>
+          ) : onGenerateDay ? (
+            <TouchableOpacity
+              style={styles.generateDayBtn}
+              onPress={() => onGenerateDay(selectedDay)}
+            >
+              <Text style={styles.generateDayBtnText}>Generate meals for this day</Text>
+            </TouchableOpacity>
+          ) : (
+            <Text style={styles.noMeals}>No meals planned for this day.</Text>
+          )
         ) : (
           mealsForDay.map((meal) => (
             <RecipeCard key={meal.id} meal={meal} onPress={onMealPress} />
@@ -98,4 +114,21 @@ const styles = StyleSheet.create({
   tabTextActive: { color: '#fff' },
   meals: { gap: 8 },
   noMeals: { color: '#9ca3af', textAlign: 'center', paddingVertical: 16, fontSize: 14 },
+  generateDayBtn: {
+    backgroundColor: '#22c55e',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  generateDayBtnText: { fontSize: 16, fontWeight: '600', color: '#fff' },
+  generatingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 24,
+    gap: 12,
+  },
+  generatingText: { fontSize: 14, color: '#6b7280', fontWeight: '500' },
 })

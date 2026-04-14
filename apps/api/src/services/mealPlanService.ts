@@ -16,6 +16,7 @@ export interface GeneratePlanInput {
   weekBudget: number
   tier?: 'FREE' | 'PLUS' | 'PRO'
   favourites?: Array<{ title: string; timesCooked: number; userRating: number | null }>
+  dayCount?: number
 }
 
 export interface GeneratedMeal {
@@ -188,7 +189,8 @@ function normalizeGeneratedMeal(
 
 function normalizeGeneratedPlan(
   plan: GeneratedPlan,
-  profile: GeneratePlanInput['profile']
+  profile: GeneratePlanInput['profile'],
+  dayCount: number = 7
 ): GeneratedPlan {
   const dayMap = new Map<number, GeneratedDay>()
   for (const day of plan.days ?? []) {
@@ -207,7 +209,7 @@ function normalizeGeneratedPlan(
 
   const normalizedDays: GeneratedDay[] = []
 
-  for (let dayOfWeek = 0; dayOfWeek < PLAN_DAY_COUNT; dayOfWeek++) {
+  for (let dayOfWeek = 0; dayOfWeek < dayCount; dayOfWeek++) {
     const sourceDay = dayMap.get(dayOfWeek)
     const sourceMeals = sourceDay?.meals ?? []
 
@@ -234,7 +236,7 @@ function normalizeGeneratedPlan(
 }
 
 export async function generateMealPlan(input: GeneratePlanInput): Promise<GeneratedPlan> {
-  const { profile, weekBudget, favourites, tier } = input
+  const { profile, weekBudget, favourites, tier, dayCount = 7 } = input
 
   const favouritesContext =
     favourites && favourites.length > 0
@@ -256,7 +258,7 @@ CONTEXT:
 ${favouritesContext}
 
 REQUIREMENTS:
-Generate a 7-day meal plan (7 days, 3 meals/day = 21 recipes total).
+Generate a ${dayCount}-day meal plan (${dayCount} days, 3 meals/day = ${dayCount * 3} recipes total).
 Each recipe should be complete, inspiring, and teach cooking skills.
 
 For EACH recipe, provide rich details:
@@ -298,7 +300,7 @@ RECIPE STRUCTURE:
 - nutrition: Accurate breakdown
 
 Plan requirements:
-- Return exactly 7 days with dayOfWeek values 0, 1, 2, 3, 4, 5, 6
+- Return exactly ${dayCount} days with dayOfWeek values 0 through ${dayCount - 1}
 - For each day include exactly these meals in order: BREAKFAST, LUNCH, DINNER
 - Do not include any meal types beyond BREAKFAST, LUNCH, DINNER
 
@@ -350,7 +352,192 @@ Respond ONLY with a valid JSON object in this exact shape:
 
   const text = response.content[0].type === 'text' ? response.content[0].text : ''
   const parsed = parseJsonResponse<GeneratedPlan>(text)
-  return normalizeGeneratedPlan(parsed, profile)
+  return normalizeGeneratedPlan(parsed, profile, dayCount)
+}
+
+export async function generateDayMeals(
+  planId: string,
+  dayOfWeek: number,
+  profile: GeneratePlanInput['profile']
+) {
+  // Validate inputs
+  if (dayOfWeek < 0 || dayOfWeek > 6) {
+    throw new Error(`Invalid dayOfWeek: ${dayOfWeek}. Must be 0-6.`)
+  }
+
+  // Check if meals already exist for this day
+  const existingMeals = await prisma.meal.findMany({
+    where: { mealPlanId: planId, dayOfWeek },
+  })
+  if (existingMeals.length > 0) {
+    throw new Error(`Meals already exist for day ${dayOfWeek} in this plan.`)
+  }
+
+  // Fetch current plan to know the weekly budget context
+  const existingPlan = await prisma.mealPlan.findUnique({
+    where: { id: planId },
+    include: { meals: true },
+  })
+  if (!existingPlan) {
+    throw new Error(`Plan ${planId} not found.`)
+  }
+
+  const dayLabels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+  const dayLabel = dayLabels[dayOfWeek]
+
+  const singleDayPrompt = `You are an expert culinary instructor and nutritionist creating personalized meal recipes.
+
+CONTEXT:
+- Dietary goals: ${profile.dietaryGoals.join(', ') || 'balanced'}
+- Allergies/restrictions: ${profile.allergies.join(', ') || 'none'}
+- Preferred cuisines: ${profile.cuisinePrefs.join(', ') || 'any'}
+- Max cooking time: ${profile.cookingTimeMax} min per meal
+- Servings: ${profile.servings}
+
+TASK:
+Generate 3 meals for ${dayLabel} (BREAKFAST, LUNCH, DINNER). Each recipe should be complete, inspiring, and teach cooking skills.
+
+For EACH recipe, provide rich details:
+
+FLAVOR & EXPERIENCE:
+- flavorProfile: Describe taste in 1 sentence (e.g., "Bright, spicy, umami-rich with garlic warmth")
+- cuisineOrigin: Cultural/regional inspiration (e.g., "Thai street food")
+- difficulty: "easy" | "medium" | "challenging"
+- dishType: Category (e.g., "Pan-seared", "Slow braise", "Raw salad")
+
+COOKING MASTERY:
+- cookingTips: 2-3 professional tips about heat, timing, or technique
+- techniques: List cooking methods used (e.g., ["pan-fry", "simmer"])
+- equipmentNeeded: Tools required (e.g., ["cast iron skillet", "whisk"])
+
+PRACTICAL HELP:
+- prepTime: Minutes to prep ingredients before cooking starts
+- canMakeAhead: What can be prepared 1-2 days in advance
+- storageInfo: How long it keeps and best storage method
+- substitutions: For 2-3 key ingredients, offer alternative options
+
+NUTRITIONAL CONTEXT:
+- nutritionContext: Tie to their dietary goals (e.g., "High-protein, low-carb")
+- healthBenefits: 2-3 specific health benefits (e.g., ["Supports digestion", "Rich in antioxidants"])
+- allergenWarnings: Any potential allergen concerns
+
+ELEVATION:
+- mealPairings.side: 2 suggested side dishes or accompaniments
+- mealPairings.beverage: 2 beverage suggestions
+- yieldDescription: Be specific (e.g., "Serves 4 with lunch leftovers")
+
+RECIPE STRUCTURE:
+- title: Evocative, descriptive name
+- ingredients: 6-8 items (richer variety)
+- instructions: 4-6 clear steps with technique hints
+- readyInMinutes: Realistic total time (including prep)
+- estCostPerServing: Budget-conscious pricing
+- tags: Use tags like ["quick", "one-pan", "make-ahead", "high-protein", "vegetarian", "spicy"]
+- nutrition: Accurate breakdown
+
+Respond ONLY with a valid JSON object in this exact shape:
+{
+  "meals": [
+    {
+      "mealType": "BREAKFAST" | "LUNCH" | "DINNER",
+      "title": string,
+      "flavorProfile": string,
+      "cuisineOrigin": string,
+      "difficulty": "easy" | "medium" | "challenging",
+      "dishType": string,
+      "estCostPerServing": number,
+      "readyInMinutes": number,
+      "prepTime": number,
+      "yieldDescription": string,
+      "tags": string[],
+      "ingredients": [{ "name": string, "amount": number, "unit": string }],
+      "instructions": [{ "step": number, "text": string }],
+      "cookingTips": [string],
+      "techniques": [string],
+      "equipmentNeeded": [string],
+      "canMakeAhead": string,
+      "storageInfo": string,
+      "nutrition": { "calories": number, "protein": number, "carbs": number, "fat": number },
+      "nutritionContext": string,
+      "healthBenefits": [string],
+      "allergenWarnings": [string],
+      "substitutions": [{ "ingredient": string, "substitutes": [string] }],
+      "mealPairings": { "side": [string], "beverage": [string] }
+    }
+  ]
+}`
+
+  const response = await anthropic.messages.create({
+    model: AI_MODELS.MEAL_PLAN,
+    max_tokens: 4000,
+    messages: [{ role: 'user', content: singleDayPrompt }],
+  })
+
+  const text = response.content[0].type === 'text' ? response.content[0].text : ''
+  const parsed = parseJsonResponse<{ meals: GeneratedMeal[] }>(text)
+
+  // Create recipes and meals for this day
+  for (const meal of parsed.meals) {
+    const recipe = await prisma.recipe.create({
+      data: {
+        title: meal.title,
+        readyInMinutes: meal.readyInMinutes,
+        servings: profile.servings,
+        ingredients: meal.ingredients,
+        instructions: meal.instructions,
+        nutrition: meal.nutrition,
+        tags: meal.tags,
+        imageUrl: null,
+        flavorProfile: meal.flavorProfile,
+        cuisineOrigin: meal.cuisineOrigin,
+        difficulty: meal.difficulty,
+        dishType: meal.dishType,
+        cookingTips: meal.cookingTips ?? [],
+        techniques: meal.techniques ?? [],
+        equipmentNeeded: meal.equipmentNeeded ?? [],
+        prepTime: meal.prepTime,
+        canMakeAhead: meal.canMakeAhead,
+        storageInfo: meal.storageInfo,
+        substitutions: meal.substitutions,
+        nutritionContext: meal.nutritionContext,
+        healthBenefits: meal.healthBenefits ?? [],
+        allergenWarnings: meal.allergenWarnings ?? [],
+        mealPairings: meal.mealPairings,
+        yieldDescription: meal.yieldDescription,
+        source: 'ai_generated' as const,
+      },
+    })
+
+    await prisma.meal.create({
+      data: {
+        mealPlanId: planId,
+        dayOfWeek,
+        mealType: meal.mealType as typeof PLAN_MEAL_TYPES[number],
+        estCost: meal.estCostPerServing * profile.servings,
+        bestStore: 'TBD',
+        recipeId: recipe.id,
+      },
+    })
+  }
+
+  // Recalculate plan's total cost
+  const allMeals = await prisma.meal.findMany({
+    where: { mealPlanId: planId },
+  })
+  const newTotalCost = allMeals.reduce((sum, m) => sum + m.estCost, 0)
+
+  await prisma.mealPlan.update({
+    where: { id: planId },
+    data: { totalEstCost: newTotalCost },
+  })
+
+  // Return the updated plan
+  const updatedPlan = await prisma.mealPlan.findUnique({
+    where: { id: planId },
+    include: { meals: { include: { recipe: true } } },
+  })
+
+  return updatedPlan!
 }
 
 // ─── Save ─────────────────────────────────────────────────────────────────────

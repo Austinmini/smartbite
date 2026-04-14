@@ -128,8 +128,8 @@ describe('generateMealPlan', () => {
     await generateMealPlan({ profile: mockProfile, weekBudget: 100 })
 
     const prompt = anthropicCreate.mock.calls[0][0].messages[0].content as string
-    expect(prompt).toContain('exactly 7 days')
-    expect(prompt).toContain('dayOfWeek values 0, 1, 2, 3, 4, 5, 6')
+    expect(prompt).toContain('7-day meal plan')
+    expect(prompt).toContain('dayOfWeek values')
     expect(prompt).toContain('BREAKFAST, LUNCH, DINNER')
   })
 

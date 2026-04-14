@@ -72,10 +72,12 @@ export interface MealPlan {
 interface MealPlanState {
   plan: MealPlan | null
   isGenerating: boolean
+  generatingDay: number | null
   error: string | null
   setPlan: (plan: MealPlan) => void
   clearPlan: () => void
   setGenerating: (v: boolean) => void
+  setGeneratingDay: (day: number | null) => void
   setError: (e: string | null) => void
   reset: () => void
 }
@@ -85,12 +87,14 @@ export const useMealPlanStore = create<MealPlanState>()(
     (set) => ({
       plan: null,
       isGenerating: false,
+      generatingDay: null,
       error: null,
       setPlan: (plan) => set({ plan }),
       clearPlan: () => set({ plan: null }),
       setGenerating: (v) => set({ isGenerating: v }),
+      setGeneratingDay: (day) => set({ generatingDay: day }),
       setError: (e) => set({ error: e }),
-      reset: () => set({ plan: null, isGenerating: false, error: null }),
+      reset: () => set({ plan: null, isGenerating: false, generatingDay: null, error: null }),
     }),
     {
       name: 'meal-plan-store',

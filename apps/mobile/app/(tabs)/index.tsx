@@ -30,7 +30,7 @@ const CONTEXTUAL_TIPS = [
 
 export default function HomeScreen() {
   const router = useRouter()
-  const { plan, isGenerating, error, setPlan, clearPlan, setGenerating, setError } = useMealPlanStore()
+  const { plan, isGenerating, generatingDay, error, setPlan, clearPlan, setGenerating, setGeneratingDay, setError } = useMealPlanStore()
   const token = useAuthStore((s) => s.token)
   const user = useAuthStore((s) => s.user)
   const weeklyBudget = useProfileStore((s) => s.weeklyBudget)
@@ -204,6 +204,22 @@ export default function HomeScreen() {
     router.push(`/recipe/${meal.id}`)
   }
 
+  async function generateDay(dayOfWeek: number) {
+    if (!plan) return
+    setGeneratingDay(dayOfWeek)
+    try {
+      const response = await apiClient.post(`/plans/${plan.id}/generate-day`, { dayOfWeek })
+      setPlan(response.plan)
+      trackEvent('day_generated', { dayOfWeek, planId: plan.id })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to generate day'
+      setError(message)
+      Alert.alert('Error', message)
+    } finally {
+      setGeneratingDay(null)
+    }
+  }
+
   return (
     <ScrollView style={styles.container} testID="home-screen" contentContainerStyle={styles.content}>
       {/* Announcements */}
@@ -222,7 +238,7 @@ export default function HomeScreen() {
 
       {/* Primary content first: recipe list / plan card */}
       {plan ? (
-        <MealPlanCard plan={plan} onMealPress={handleMealPress} />
+        <MealPlanCard plan={plan} onMealPress={handleMealPress} onGenerateDay={generateDay} generatingDay={generatingDay} />
       ) : (
         <View style={styles.emptyState}>
           <Text style={styles.emptyTitle}>No plan yet</Text>
