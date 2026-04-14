@@ -177,8 +177,22 @@ describe('POST /prices/observation', () => {
     expect(res.json().error).toBeDefined()
   })
 
-  it('returns 400 when storeId is missing', async () => {
+  it('works when storeId is missing (uses storeName as identifier)', async () => {
     const { storeId: _sid, ...noStoreId } = validObservation
+    prismaMock.priceObservation.create.mockResolvedValue({
+      id: 'obs-1',
+      upc: '012345678901',
+      storeId: 'HEB', // API uses storeName as fallback
+      storeName: 'HEB',
+      price: 3.99,
+      userId: 'user-1',
+      scannedAt: new Date(),
+    })
+    rewardsMock.processScanReward.mockResolvedValue({
+      totalAwarded: 5,
+      breakdown: [{ amount: 5, reason: 'PRICE_SCAN' }],
+    })
+
     const res = await app.inject({
       method: 'POST',
       url: '/prices/observation',
@@ -186,7 +200,15 @@ describe('POST /prices/observation', () => {
       body: JSON.stringify(noStoreId),
     })
 
-    expect(res.statusCode).toBe(400)
+    expect(res.statusCode).toBe(201)
+    // Verify that storeId was set to storeName
+    expect(prismaMock.priceObservation.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          storeId: 'HEB', // Should use storeName as fallback
+        }),
+      })
+    )
   })
 
   it('returns 400 when price is negative', async () => {

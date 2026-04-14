@@ -133,12 +133,11 @@ export async function pricesRoute(app: FastifyInstance) {
       if (!upc || typeof upc !== 'string') {
         return reply.status(400).send({ error: 'upc is required' })
       }
-      if (!storeId || typeof storeId !== 'string') {
-        return reply.status(400).send({ error: 'storeId is required' })
-      }
       if (!storeName || typeof storeName !== 'string') {
         return reply.status(400).send({ error: 'storeName is required' })
       }
+      // storeId is optional; use storeName as the identifier if not provided
+      const finalStoreId = storeId ?? storeName
       if (typeof price !== 'number' || price < 0) {
         return reply.status(400).send({ error: 'price must be a non-negative number' })
       }
@@ -150,7 +149,7 @@ export async function pricesRoute(app: FastifyInstance) {
         data: {
           upc,
           productName: typeof productName === 'string' ? productName : null,
-          storeId,
+          storeId: finalStoreId,
           storeName,
           storeLocation: storeLocation as object,
           price,
@@ -165,7 +164,7 @@ export async function pricesRoute(app: FastifyInstance) {
       if (normalizedProductName.length > 0) {
         const previousCoverage = await prisma.priceObservation.count({
           where: {
-            storeId,
+            storeId: finalStoreId,
             id: { not: observation.id },
             productName: { contains: normalizedProductName, mode: 'insensitive' },
             scannedAt: { gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 120) },

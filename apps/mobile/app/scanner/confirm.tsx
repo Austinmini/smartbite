@@ -86,14 +86,12 @@ export default function ScanConfirmScreen() {
 
     setSubmitting(true)
     try {
-      // Use provided storeId or generate from store name (e.g., "HEB" -> "heb")
-      const finalStoreId = storeId ?? currentStoreName.toLowerCase().replace(/[^a-z0-9]/g, '-')
       const finalStoreName = currentStoreName.trim() || 'Unknown Store'
 
       // Submit community price observation
+      // Note: storeId is optional; API uses storeName as the identifier
       await apiClient.post('/prices/observation', {
         upc,
-        storeId: finalStoreId,
         storeName: finalStoreName,
         storeLocation: { lat: 0, lng: 0, address: '', city: '', state: 'TX' },
         price: priceNum,
