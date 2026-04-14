@@ -84,14 +84,14 @@ describe('generateMealPlan', () => {
     ).rejects.toThrow()
   })
 
-  it('uses the configured haiku meal-plan model', async () => {
+  it('uses the configured sonnet meal-plan model', async () => {
     anthropicCreate.mockResolvedValue({
       content: [{ type: 'text', text: JSON.stringify(mockPlanData) }],
     })
 
     await generateMealPlan({ profile: mockProfile, weekBudget: 100 })
 
-    expect(anthropicCreate.mock.calls[0][0].model).toBe('claude-haiku-4-5-20251001')
+    expect(anthropicCreate.mock.calls[0][0].model).toBe('claude-sonnet-4-6')
   })
 
   it('includes dietary restrictions in the Claude prompt', async () => {

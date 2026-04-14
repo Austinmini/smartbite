@@ -340,7 +340,7 @@ Respond ONLY with a valid JSON object in this exact shape:
   ]
 }`
 
-  const maxTokens = tier === 'FREE' ? 11000 : 16000
+  const maxTokens = tier === 'FREE' ? 8000 : 12000
 
   const response = await anthropic.messages.create({
     model: AI_MODELS.MEAL_PLAN,
