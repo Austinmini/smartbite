@@ -74,11 +74,19 @@ export async function plansRoute(app: FastifyInstance) {
       })
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error'
+      request.log.error({ err: error }, `[plans/generate] Claude error: ${msg}`)
       return reply.status(500).send({ error: `Failed to generate meal plan: ${msg}` })
     }
 
     // Save to DB
-    const saved = await saveMealPlan(userId, planData, profile.servings)
+    let saved
+    try {
+      saved = await saveMealPlan(userId, planData, profile.servings)
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Unknown error'
+      request.log.error({ err: error }, `[plans/generate] DB save error: ${msg}`)
+      return reply.status(500).send({ error: `Failed to save meal plan: ${msg}` })
+    }
     await markActionComplete(userId, 'first_plan_generated')
 
     // Increment Redis counter; set TTL on first use (best-effort — Redis may be unavailable)
