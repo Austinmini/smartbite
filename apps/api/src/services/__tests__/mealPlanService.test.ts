@@ -55,8 +55,8 @@ describe('generateMealPlan', () => {
     const result = await generateMealPlan({ profile: mockProfile, weekBudget: 100 })
 
     expect(result.totalEstCost).toBeGreaterThan(0)
-    expect(result.days).toHaveLength(7)
-    expect(result.days.map((day) => day.dayOfWeek)).toEqual([0, 1, 2, 3, 4, 5, 6])
+    expect(result.days).toHaveLength(3)
+    expect(result.days[0].dayOfWeek).toBe(0)
     expect(result.days[0].meals).toHaveLength(3)
     expect(result.days[0].meals[0].title).toBe('Scrambled Eggs')
     expect(result.days[0].meals[0].nutrition.calories).toBe(300)
@@ -120,7 +120,7 @@ describe('generateMealPlan', () => {
     expect(prompt).toContain('150')
   })
 
-  it('requests a full 7-day weekly plan', async () => {
+  it('requests a 3-day plan by default', async () => {
     anthropicCreate.mockResolvedValue({
       content: [{ type: 'text', text: JSON.stringify(mockPlanData) }],
     })
@@ -128,8 +128,8 @@ describe('generateMealPlan', () => {
     await generateMealPlan({ profile: mockProfile, weekBudget: 100 })
 
     const prompt = anthropicCreate.mock.calls[0][0].messages[0].content as string
-    expect(prompt).toContain('7-day meal plan')
-    expect(prompt).toContain('dayOfWeek values')
+    expect(prompt).toContain('3-day meal plan')
+    expect(prompt).toContain('dayOfWeek')
     expect(prompt).toContain('BREAKFAST, LUNCH, DINNER')
   })
 

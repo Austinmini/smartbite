@@ -236,7 +236,7 @@ function normalizeGeneratedPlan(
 }
 
 export async function generateMealPlan(input: GeneratePlanInput): Promise<GeneratedPlan> {
-  const { profile, weekBudget, favourites, tier, dayCount = 7 } = input
+  const { profile, weekBudget, favourites, tier, dayCount = 3 } = input
 
   const favouritesContext =
     favourites && favourites.length > 0
@@ -258,28 +258,23 @@ CONTEXT:
 ${favouritesContext}
 
 TASK:
-Generate a ${dayCount}-day meal plan (${dayCount * 3} recipes total - 3 per day).
-Be concise — short instructions, minimal fields.
+Generate a ${dayCount}-day meal plan (${dayCount * 3} recipes - BREAKFAST, LUNCH, DINNER each day).
+Keep recipes simple and output compact.
 
-For EACH recipe:
-- title: Clear, appetizing name
-- ingredients: 4-5 items with amounts and units
-- instructions: exactly 3 steps (one sentence each)
-- readyInMinutes: Total time (prep + cooking)
-- estCostPerServing: Budget-conscious estimate
-- prepTime: Minutes to prep before cooking
-- equipmentNeeded: 1-2 tools max
+For EACH recipe include ONLY:
+- mealType: "BREAKFAST" | "LUNCH" | "DINNER"
+- title: short appetizing name
 - difficulty: "easy" | "medium" | "challenging"
-- nutrition: { calories, protein (g), carbs (g), fat (g) }
-- tags: 2-3 tags max
-- allergenWarnings: only if relevant, otherwise []
-- nutritionContext: one short sentence
+- estCostPerServing: number
+- readyInMinutes: number
+- tags: 2 tags max
+- ingredients: 4-5 items [{ name, amount, unit }]
+- instructions: exactly 3 steps [{ step, text }] — one sentence each
+- nutrition: { calories, protein, carbs, fat }
 
-Plan requirements:
-- Return exactly ${dayCount} days with dayOfWeek values 0 through ${dayCount - 1}
-- Each day: BREAKFAST, LUNCH, DINNER (in that order)
+Return exactly ${dayCount} days, dayOfWeek 0 through ${dayCount - 1}.
 
-Respond ONLY with valid JSON:
+Respond ONLY with this JSON shape (no extra fields):
 {
   "totalEstCost": number,
   "days": [
@@ -287,27 +282,22 @@ Respond ONLY with valid JSON:
       "dayOfWeek": 0,
       "meals": [
         {
-          "mealType": "BREAKFAST" | "LUNCH" | "DINNER",
+          "mealType": "BREAKFAST",
           "title": string,
           "difficulty": "easy" | "medium" | "challenging",
           "estCostPerServing": number,
           "readyInMinutes": number,
-          "prepTime": number,
-          "tags": string[],
+          "tags": [string],
           "ingredients": [{ "name": string, "amount": number, "unit": string }],
           "instructions": [{ "step": number, "text": string }],
-          "equipmentNeeded": [string],
-          "nutrition": { "calories": number, "protein": number, "carbs": number, "fat": number },
-          "allergenWarnings": [string],
-          "nutritionContext": string
+          "nutrition": { "calories": number, "protein": number, "carbs": number, "fat": number }
         }
       ]
     }
   ]
 }`
 
-  // FREE tier gets concise output; PLUS/PRO get full detail with headroom
-  const maxTokens = dayCount <= 2 ? 4000 : (tier === 'FREE' ? 8000 : 32000)
+  const maxTokens = tier === 'FREE' ? 4000 : 8000
 
   try {
     const timeoutPromise = new Promise<never>((_, reject) =>

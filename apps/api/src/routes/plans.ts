@@ -70,7 +70,7 @@ export async function plansRoute(app: FastifyInstance) {
         profile: profile as any,
         weekBudget: profile.weeklyBudget,
         tier: user.tier as 'FREE' | 'PLUS' | 'PRO',
-        dayCount: dayCount && dayCount > 0 ? dayCount : 7,
+        dayCount: dayCount && dayCount > 0 ? Math.min(dayCount, 3) : 3,
       })
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error'

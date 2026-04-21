@@ -113,13 +113,13 @@ describe('generateMealPlan — personalisation (Sprint 5)', () => {
     await generateMealPlan({ profile: baseProfile, weekBudget: 100, tier: 'FREE' })
 
     const callArgs = anthropicMock.mock.calls[0][0]
-    expect(callArgs.max_tokens).toBe(8000)
+    expect(callArgs.max_tokens).toBe(4000)
   })
 
   it('uses higher max_tokens for PRO tier', async () => {
     await generateMealPlan({ profile: baseProfile, weekBudget: 100, tier: 'PRO' })
 
     const callArgs = anthropicMock.mock.calls[0][0]
-    expect(callArgs.max_tokens).toBe(32000)
+    expect(callArgs.max_tokens).toBe(8000)
   })
 })
