@@ -259,21 +259,21 @@ ${favouritesContext}
 
 TASK:
 Generate a ${dayCount}-day meal plan (${dayCount * 3} recipes total - 3 per day).
-Each recipe should be complete, practical, and delicious.
+Be concise — short instructions, minimal fields.
 
 For EACH recipe:
 - title: Clear, appetizing name
-- ingredients: 5-7 items with amounts and units
-- instructions: 4-5 clear steps
+- ingredients: 4-5 items with amounts and units
+- instructions: exactly 3 steps (one sentence each)
 - readyInMinutes: Total time (prep + cooking)
 - estCostPerServing: Budget-conscious estimate
 - prepTime: Minutes to prep before cooking
-- equipmentNeeded: Tools needed (e.g., ["skillet", "knife"])
+- equipmentNeeded: 1-2 tools max
 - difficulty: "easy" | "medium" | "challenging"
 - nutrition: { calories, protein (g), carbs (g), fat (g) }
-- tags: ["quick", "one-pan", "high-protein", "vegetarian", etc]
-- allergenWarnings: List any common allergen concerns
-- nutritionContext: Brief tie to their dietary goals (one sentence)
+- tags: 2-3 tags max
+- allergenWarnings: only if relevant, otherwise []
+- nutritionContext: one short sentence
 
 Plan requirements:
 - Return exactly ${dayCount} days with dayOfWeek values 0 through ${dayCount - 1}
@@ -306,8 +306,8 @@ Respond ONLY with valid JSON:
   ]
 }`
 
-  // FREE tier gets fewer meals of detail; PLUS/PRO get full recipe output
-  const maxTokens = dayCount <= 2 ? 4000 : (tier === 'FREE' ? 8000 : 16000)
+  // FREE tier gets concise output; PLUS/PRO get full detail with headroom
+  const maxTokens = dayCount <= 2 ? 4000 : (tier === 'FREE' ? 8000 : 32000)
 
   try {
     const timeoutPromise = new Promise<never>((_, reject) =>
@@ -377,19 +377,19 @@ CONTEXT:
 TASK:
 Generate 3 meals for ${dayLabel} (BREAKFAST, LUNCH, DINNER in order). Each should be practical, delicious, and stay within cooking time limits.
 
-For EACH recipe:
+For EACH recipe, be concise:
 - title: Clear, appetizing name
-- ingredients: 5-7 items with amounts and units
-- instructions: 4-5 clear steps
+- ingredients: 4-5 items with amounts and units
+- instructions: exactly 3 steps (one sentence each)
 - readyInMinutes: Total time (prep + cooking)
 - estCostPerServing: Budget-conscious estimate
 - prepTime: Minutes to prep before cooking
-- equipmentNeeded: Tools needed (e.g., ["skillet", "knife"])
+- equipmentNeeded: 1-2 tools max
 - difficulty: "easy" | "medium" | "challenging"
 - nutrition: { calories, protein (g), carbs (g), fat (g) }
-- tags: ["quick", "one-pan", "high-protein", "vegetarian", etc]
-- allergenWarnings: List any common allergen concerns
-- nutritionContext: Brief tie to their dietary goals (one sentence)
+- tags: 2-3 tags max
+- allergenWarnings: only if relevant, otherwise []
+- nutritionContext: one short sentence
 
 Respond ONLY with valid JSON:
 {

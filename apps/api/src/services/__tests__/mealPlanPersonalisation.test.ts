@@ -120,6 +120,6 @@ describe('generateMealPlan — personalisation (Sprint 5)', () => {
     await generateMealPlan({ profile: baseProfile, weekBudget: 100, tier: 'PRO' })
 
     const callArgs = anthropicMock.mock.calls[0][0]
-    expect(callArgs.max_tokens).toBe(16000)
+    expect(callArgs.max_tokens).toBe(32000)
   })
 })
