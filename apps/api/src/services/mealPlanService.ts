@@ -306,8 +306,8 @@ Respond ONLY with valid JSON:
   ]
 }`
 
-  // Streamlined prompts require fewer tokens
-  const maxTokens = dayCount <= 2 ? 8000 : (tier === 'FREE' ? 4000 : 6000)
+  // FREE tier gets fewer meals of detail; PLUS/PRO get full recipe output
+  const maxTokens = dayCount <= 2 ? 4000 : (tier === 'FREE' ? 8000 : 16000)
 
   try {
     const timeoutPromise = new Promise<never>((_, reject) =>
