@@ -312,8 +312,8 @@ Respond ONLY with valid JSON:
   try {
     const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => {
-        reject(new Error('Claude API call timed out after 30 seconds. This may indicate rate limiting or network issues.'))
-      }, 30000)
+        reject(new Error('Claude API call timed out after 120 seconds. This may indicate rate limiting or network issues.'))
+      }, 120000)
     )
 
     const response = await Promise.race([
@@ -415,7 +415,7 @@ Respond ONLY with valid JSON:
   let parsed
   try {
     const response = await anthropic.messages.create({
-      model: AI_MODELS.MEAL_PLAN,
+      model: AI_MODELS.MEAL_PLAN_DAY,
       max_tokens: 3000,
       messages: [{ role: 'user', content: singleDayPrompt }],
     })
@@ -641,7 +641,7 @@ Respond ONLY with a valid JSON object in this exact shape:
 }`
 
   const response = await anthropic.messages.create({
-    model: AI_MODELS.MEAL_PLAN,
+    model: AI_MODELS.MEAL_REGEN,
     max_tokens: 2000,
     messages: [{ role: 'user', content: singleMealPrompt }],
   })

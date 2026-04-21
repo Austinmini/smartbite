@@ -12,27 +12,32 @@ describe('AI_MODELS config', () => {
 
   it('uses default model values when env vars are not set', () => {
     delete process.env.AI_MODEL_MEAL_PLAN
+    delete process.env.AI_MODEL_MEAL_PLAN_DAY
+    delete process.env.AI_MODEL_MEAL_REGEN
     delete process.env.AI_MODEL_PRICE_SUGGEST
     delete process.env.AI_MODEL_REMINDERS
-    delete process.env.AI_MODEL_RECIPE_GENERATE
 
     const { AI_MODELS } = require('../aiConfig')
 
     expect(AI_MODELS.MEAL_PLAN).toBe('claude-sonnet-4-6')
-    expect(AI_MODELS.RECIPE_GENERATE).toBe('claude-sonnet-4-6')
+    expect(AI_MODELS.MEAL_PLAN_DAY).toBe('claude-haiku-4-5-20251001')
+    expect(AI_MODELS.MEAL_REGEN).toBe('claude-haiku-4-5-20251001')
     expect(AI_MODELS.PRICE_SUGGEST).toBe('claude-haiku-4-5-20251001')
     expect(AI_MODELS.REMINDERS).toBe('claude-haiku-4-5-20251001')
   })
 
   it('allows env var overrides for each model', () => {
-    process.env.AI_MODEL_MEAL_PLAN = 'claude-opus-4-6'
+    process.env.AI_MODEL_MEAL_PLAN = 'claude-opus-4-7'
+    process.env.AI_MODEL_MEAL_PLAN_DAY = 'claude-sonnet-4-6'
     process.env.AI_MODEL_PRICE_SUGGEST = 'claude-sonnet-4-6'
 
     const { AI_MODELS } = require('../aiConfig')
 
-    expect(AI_MODELS.MEAL_PLAN).toBe('claude-opus-4-6')
+    expect(AI_MODELS.MEAL_PLAN).toBe('claude-opus-4-7')
+    expect(AI_MODELS.MEAL_PLAN_DAY).toBe('claude-sonnet-4-6')
     expect(AI_MODELS.PRICE_SUGGEST).toBe('claude-sonnet-4-6')
     // unoverridden still defaults
+    expect(AI_MODELS.MEAL_REGEN).toBe('claude-haiku-4-5-20251001')
     expect(AI_MODELS.REMINDERS).toBe('claude-haiku-4-5-20251001')
   })
 })
