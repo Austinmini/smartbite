@@ -14,6 +14,7 @@ import {
 } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { apiClient } from '../../lib/apiClient'
+import { useProfileStore } from '../../stores/profileStore'
 
 interface ProductInfo {
   upc: string
@@ -35,7 +36,8 @@ interface ScanConfirmParams {
 export default function ScanConfirmScreen() {
   const router = useRouter()
   const params = useLocalSearchParams() as unknown as ScanConfirmParams
-  const { upc, storeName = 'Unknown Store', storeId, planId, itemKey } = params
+  const { upc, storeName, storeId, planId, itemKey } = params
+  const selectedStores = useProfileStore((s) => s.selectedStores)
 
   const [product, setProduct] = React.useState<ProductInfo | null>(null)
   const [loading, setLoading] = React.useState(true)
@@ -45,7 +47,8 @@ export default function ScanConfirmScreen() {
   const [quantity, setQuantity] = React.useState('1')
   const [unit, setUnit] = React.useState('each')
   const [productName, setProductName] = React.useState('')
-  const [currentStoreName, setCurrentStoreName] = React.useState(storeName)
+  const defaultStore = storeName || selectedStores[0]?.name || ''
+  const [currentStoreName, setCurrentStoreName] = React.useState(defaultStore)
   const [submitting, setSubmitting] = React.useState(false)
 
   React.useEffect(() => {
@@ -191,6 +194,21 @@ export default function ScanConfirmScreen() {
         )}
 
         <Text style={styles.fieldLabel}>Store name</Text>
+        {selectedStores.length > 0 ? (
+          <View style={styles.storeChips}>
+            {selectedStores.map((store) => (
+              <TouchableOpacity
+                key={store.id}
+                style={[styles.storeChip, currentStoreName === store.name && styles.storeChipSelected]}
+                onPress={() => setCurrentStoreName(store.name)}
+              >
+                <Text style={[styles.storeChipText, currentStoreName === store.name && styles.storeChipTextSelected]}>
+                  {store.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : null}
         <TextInput
           style={styles.input}
           value={currentStoreName}
@@ -278,6 +296,14 @@ const styles = StyleSheet.create({
   productUnit: { fontSize: 13, color: '#9ca3af' },
   notFoundTag: { fontSize: 12, color: '#22c55e', fontWeight: '600', marginTop: 4 },
 
+  storeChips: { flexDirection: 'row', gap: 8, marginBottom: 10, flexWrap: 'wrap' },
+  storeChip: {
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+    borderWidth: 1.5, borderColor: '#d1d5db', backgroundColor: '#fff',
+  },
+  storeChipSelected: { borderColor: '#22c55e', backgroundColor: '#f0fdf4' },
+  storeChipText: { fontSize: 14, color: '#374151', fontWeight: '500' },
+  storeChipTextSelected: { color: '#16a34a', fontWeight: '600' },
   storeLabel: { fontSize: 14, color: '#6b7280', marginBottom: 24, marginTop: 4 },
 
   fieldLabel: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6 },
