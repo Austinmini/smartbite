@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify'
+import { createHash } from 'crypto'
 import { verifyJWT } from '../middleware/auth'
 import { prisma } from '../lib/prisma'
 import { redis } from '../lib/redis'
@@ -10,8 +11,33 @@ import {
   getMeal,
   regenerateMeal,
   generateDayMeals,
+  type GeneratedPlan,
 } from '../services/mealPlanService'
 import { markActionComplete } from '../services/onboardingService'
+
+const PLAN_CACHE_TTL = 7 * 24 * 60 * 60 // 7 days
+
+function planCacheKey(profile: {
+  weeklyBudget: number
+  dietaryGoals: string[]
+  allergies: string[]
+  cuisinePrefs: string[]
+  cookingTimeMax: number
+  servings: number
+}, dayCount: number): string {
+  const budgetBucket = Math.round(profile.weeklyBudget / 10) * 10
+  const timeBucket = Math.round(profile.cookingTimeMax / 15) * 15
+  const payload = JSON.stringify({
+    b: budgetBucket,
+    d: [...profile.dietaryGoals].sort(),
+    a: [...profile.allergies].sort(),
+    c: [...profile.cuisinePrefs].sort(),
+    t: timeBucket,
+    s: profile.servings,
+    n: dayCount,
+  })
+  return `plan:v1:${createHash('sha256').update(payload).digest('hex')}`
+}
 
 const TIER_LIMITS = {
   FREE: { mealPlansPerWeek: 2 },
@@ -63,19 +89,41 @@ export async function plansRoute(app: FastifyInstance) {
       return reply.status(400).send({ error: 'Complete your profile before generating a plan' })
     }
 
-    // Generate via Claude
-    let planData
+    // Generate via Claude (with Redis exact-key cache)
+    const resolvedDayCount = dayCount && dayCount > 0 ? Math.min(dayCount, 3) : 3
+    const cacheKey = planCacheKey(profile as any, resolvedDayCount)
+
+    let planData: GeneratedPlan | null = null
+
     try {
-      planData = await generateMealPlan({
-        profile: profile as any,
-        weekBudget: profile.weeklyBudget,
-        tier: user.tier as 'FREE' | 'PLUS' | 'PRO',
-        dayCount: dayCount && dayCount > 0 ? Math.min(dayCount, 3) : 3,
-      })
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Unknown error'
-      request.log.error({ err: error }, `[plans/generate] Claude error: ${msg}`)
-      return reply.status(500).send({ error: `Failed to generate meal plan: ${msg}` })
+      const cached = await redis.get(cacheKey)
+      if (cached) {
+        planData = JSON.parse(cached) as GeneratedPlan
+        request.log.info(`[plans/generate] cache hit ${cacheKey}`)
+      }
+    } catch {
+      // Redis unavailable — proceed to generate
+    }
+
+    if (!planData) {
+      try {
+        planData = await generateMealPlan({
+          profile: profile as any,
+          weekBudget: profile.weeklyBudget,
+          tier: user.tier as 'FREE' | 'PLUS' | 'PRO',
+          dayCount: resolvedDayCount,
+        })
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Unknown error'
+        request.log.error({ err: error }, `[plans/generate] Claude error: ${msg}`)
+        return reply.status(500).send({ error: `Failed to generate meal plan: ${msg}` })
+      }
+
+      try {
+        await redis.set(cacheKey, JSON.stringify(planData), 'EX', PLAN_CACHE_TTL)
+      } catch {
+        // Redis unavailable — cache miss is acceptable
+      }
     }
 
     // Save to DB
