@@ -610,18 +610,19 @@ export default function RecipeDetailScreen() {
               </View>
             ) : null}
 
-            {plan && meal ? (
-              <TouchableOpacity
-                style={styles.shoppingListBtn}
-                onPress={() => router.push({
-                  pathname: '/shopping-list/[planId]',
-                  params: { planId: plan.id, recipeId: meal.recipe.id },
-                })}
-              >
-                <Text style={styles.shoppingListBtnText}>Get shopping list</Text>
-              </TouchableOpacity>
-            ) : null}
           </View>
+        ) : null}
+
+        {plan && meal ? (
+          <TouchableOpacity
+            style={styles.shoppingListBtn}
+            onPress={() => router.push({
+              pathname: '/shopping-list/[planId]',
+              params: { planId: plan.id, recipeId: meal.recipe.id },
+            })}
+          >
+            <Text style={styles.shoppingListBtnText}>Get shopping list</Text>
+          </TouchableOpacity>
         ) : null}
       </View>
 
