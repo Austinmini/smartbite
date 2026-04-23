@@ -274,7 +274,8 @@ model Product {
   category  String?
   imageUrl  String?
   unitSize  String?
-  source    String   // "open_food_facts" | "usda" | "user_submitted"
+  nutrition Json?    // { calories, protein, carbs, fat } from USDA
+  source    String   // "open_food_facts" | "usda" | "off_usda" | "user_submitted"
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
